@@ -1,0 +1,29 @@
+{
+  "name": "web-cytus2",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node ./script/dev.js",
+    "clean": "rimraf ./build/client",
+    "build": "npm run clean:client && webpack --config ./script/prod.config.js --progress"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sgly/web-cytus2.git"
+  },
+  "author": "SgLy",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/sgly/web-cytus2/issues"
+  },
+  "homepage": "https://github.com/sgly/web-cytus2#readme",
+  "dependencies": {
+    "clean-webpack-plugin": "^2.0.1",
+    "html-webpack-plugin": "^3.2.0",
+    "konva": "^3.2.5",
+    "webpack": "^4.30.0",
+    "webpack-dev-server": "^3.3.1",
+    "webpack-merge": "^4.2.1"
+  }
+}
