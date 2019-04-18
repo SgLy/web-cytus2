@@ -3,6 +3,7 @@
 const HEIGHT = Math.min(600, Math.floor(window.innerHeight * 0.9));
 const WIDTH = HEIGHT / 3 * 4;
 const NOTE_SIZE = HEIGHT / 15;
+const NOTE_TYPE = ['click', 'hold', 'long_hold', 'drag_head', 'drag_body'];
 const NOTE_COLOR = {
   click: {
     [1]: {
@@ -12,6 +13,44 @@ const NOTE_COLOR = {
     [-1]: {
       RING: '#2b64b6',
       INNER: '#98f2ff',
+    },
+  },
+  hold: {
+    [1]: {
+      RING: '#ea5fc2',
+      INNER: 'white',
+    },
+    [-1]: {
+      RING: '#e5796c',
+      INNER: 'white',
+    },
+  },
+  long_hold: {
+    [1]: {
+      RING: '#fcdb5b',
+      INNER: '#ffe8ac',
+    },
+    [-1]: {
+      RING: '#fcdb5b',
+      INNER: '#ffe8ac',
+    },
+  },
+  drag_head: {
+    [-1]: {
+      RING: '#a72dd1',
+      INNER: '#d929ff',
+    },
+    [1]: {
+      RING: '#5e46ad',
+      INNER: '#6125ff',
+    }
+  },
+  drag_body: {
+    [-1]: {
+      INNER: '#d929ff',
+    },
+    [1]: {
+      INNER: '#6125ff',
     },
   },
 };
@@ -100,16 +139,20 @@ function mainLoop(aniTime) {
     // draw notes
     pattern.notes().forEach(note => {
       if (!note.shape) {
-        const color = NOTE_COLOR.click[note.direction];
+        const type = NOTE_TYPE[note.type] || 'click';
+        const color = NOTE_COLOR[type][note.direction];
+        const size = NOTE_SIZE * (type === 'drag_body' ? 0.5 : 1);
+        const centerColor = type === 'drag_body' || type === 'drag_head' ? color.INNER : 'white';
+        console.log(size);
         note.shape = [
           // outer white ring
           new Konva.Circle({
             x: note.x * WIDTH,
             y: note.y * (HEIGHT - NOTE_SIZE * 2) + NOTE_SIZE,
-            radius: NOTE_SIZE,
+            radius: size,
             fill: 'transparent',
             stroke: 'white',
-            strokeWidth: NOTE_SIZE * 0.15,
+            strokeWidth: size * 0.15,
             shadowBlur: 10,
             shadowColor: 'black',
             shadowOffset: { x: 0, y: 0 },
@@ -119,15 +162,15 @@ function mainLoop(aniTime) {
           new Konva.Circle({
             x: note.x * WIDTH,
             y: note.y * (HEIGHT - NOTE_SIZE * 2) + NOTE_SIZE,
-            radius: NOTE_SIZE * 0.85,
+            radius: size * (0.85 + (type === 'drag_body' ? 0.075 : 0)),
             stroke: color.RING,
-            strokeWidth: NOTE_SIZE * 0.15,
+            strokeWidth: type === 'drag_body' ? 0 : size * 0.15,
             fillRadialGradientColorStops: [
               0, color.INNER,
-              1, 'white'
+              1, centerColor
             ],
-            fillRadialGradientStartRadius: NOTE_SIZE,
-            fillRadialGradientEndRadius: NOTE_SIZE / 4,
+            fillRadialGradientStartRadius: size,
+            fillRadialGradientEndRadius: size / 4,
           }),
         ];
         note.shape.forEach(shape => noteLayer.add(shape));
@@ -168,7 +211,11 @@ function mainLoop(aniTime) {
 window.onload = () => {
   audio.on('load', () => {
     audio.play();
+    // audio.seek(7);
     window.requestAnimationFrame(mainLoop);
+    setTimeout(() => {
+      console.log(pattern.notes());
+    }, 300);
   });
 };
 
