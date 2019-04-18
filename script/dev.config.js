@@ -30,7 +30,7 @@ const devConfig = {
     quiet: true,
     overlay: true,
     compress: true,
-    host: 'localhost',
+    host: '0.0.0.0',
     port: '8000',
     watchOptions: {
       aggregateTimeout: 300,

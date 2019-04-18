@@ -34,7 +34,6 @@ const baseConfig = {
           'less-loader'
         ]
       },
-      
       {
         test: /\.(png|jpg|jpeg|gif|eot|ttf|woff|woff2|svg|svgz)(\?.+)?$/,
         use: [{
@@ -43,7 +42,16 @@ const baseConfig = {
             limit: 10000
           }
         }]
-      }
+      },
+      {
+        test: /\.(mp3|ogg|wav)$/,
+        use: [
+          {
+            loader: 'file-loader',
+            options: {},
+          },
+        ],
+      },
     ]
   },
   resolve: {
