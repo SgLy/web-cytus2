@@ -26,7 +26,7 @@ module.exports = {
         noteList.forEach(note => {
           note.y = this.position(note.tick, pageList[note.page_index]);
           note.direction = pageList[note.page_index].scan_line_direction;
-          delete note.circle;
+          delete note.shape;
         });
         this.updateTime(0);
       },
@@ -50,10 +50,7 @@ module.exports = {
         currentPage = pageList[currentPageIndex];
         nextPage = pageList[currentPageIndex + 1];
 
-        while (currentTempoIndex + 1 < tempoList.length && currentTick >= tempoList[currentTempoIndex + 1].tick) {
-          currentTempoIndex++;
-          console.log(this.currentTempo());
-        }
+        while (currentTempoIndex + 1 < tempoList.length && currentTick >= tempoList[currentTempoIndex + 1].tick) currentTempoIndex++;
 
         while (tail < noteList.length && nextPage !== undefined && noteList[tail].tick < nextPage.end_tick) tail++;
         while (head < tail && noteList[head].tick < currentTick + JUDGE_DELAY) head++;

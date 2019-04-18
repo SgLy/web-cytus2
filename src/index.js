@@ -2,7 +2,19 @@
 
 const HEIGHT = Math.min(600, Math.floor(window.innerHeight * 0.9));
 const WIDTH = HEIGHT / 3 * 4;
-const NOTE_SIZE = HEIGHT / 20;
+const NOTE_SIZE = HEIGHT / 15;
+const NOTE_COLOR = {
+  click: {
+    [1]: {
+      RING: '#3fc5bc',
+      INNER: '#6ef1e7',
+    },
+    [-1]: {
+      RING: '#2b64b6',
+      INNER: '#98f2ff',
+    },
+  },
+};
 
 const Konva = require('konva');
 const { Howl, Howler } = require('howler');
@@ -28,34 +40,48 @@ const stage = new Konva.Stage({
   width: WIDTH,
 });
 
-const layer = new Konva.Layer();
+const layers = [];
 
-stage.add(layer);
+// background
+const backgroundLayer = new Konva.Layer();
+layers.push(backgroundLayer);
+backgroundLayer.add(new Konva.Rect({
+  x: 0,
+  y: 0,
+  width: WIDTH,
+  height: HEIGHT,
+  fill: 'black',
+  strokeWidth: 0,
+  opacity: 0.5,
+}));
+
+// note layer
+const noteLayer = new Konva.Layer();
+layers.push(noteLayer);
+
+// scanning line
+const scanningLineLayer = new Konva.Layer();
+layers.push(scanningLineLayer);
+const scanningLine = new Konva.Line({
+  points: [0, 0, WIDTH, 0],
+  stroke: 'white',
+  strokeWidth: HEIGHT / 200,
+});
+scanningLineLayer.add(scanningLine);
+
+// all layers
+layers.forEach(layer => stage.add(layer));
 
 // audio
-
 root.click();
 const audio = new Howl({
   src: [require('./resources/v/v.ogg')],
 })
 
 // core
-
 const { createPattern } = require('./pattern');
 const pattern = createPattern(require('./resources/v/v.json'));
 pattern.init();
-
-const scanningLine = new Konva.Line({
-  points: [0, 0, WIDTH, 0],
-  stroke: 'black',
-  strokeWidth: HEIGHT / 200,
-  shadowColor: 'black',
-  shadowBlur: 5,
-  shadowOffset: { x: 0, y: 0 },
-  shadowOpacity: 0.5
-});
-
-layer.add(scanningLine);
 
 // main loop
 
@@ -73,29 +99,46 @@ function mainLoop(aniTime) {
 
     // draw notes
     pattern.notes().forEach(note => {
-      if (!note.circle) {
-        const color = note.direction === 1 ? '#3bd3be' : '#1e62ba';
-        note.circle = new Konva.Circle({
-          x: note.x * WIDTH,
-          y: note.y * (HEIGHT - NOTE_SIZE * 2) + NOTE_SIZE,
-          radius: NOTE_SIZE,
-          fill: 'transparent',
-          stroke: color,
-          strokeWidth: 4,
-          shadowBlur: 5,
-          shadowColor: color,
-          shadowOffset: { x: 0, y: 0 },
-          shadowOpacity: 0.5
-        });
-        layer.add(note.circle);
+      if (!note.shape) {
+        const color = NOTE_COLOR.click[note.direction];
+        note.shape = [
+          // outer white ring
+          new Konva.Circle({
+            x: note.x * WIDTH,
+            y: note.y * (HEIGHT - NOTE_SIZE * 2) + NOTE_SIZE,
+            radius: NOTE_SIZE,
+            fill: 'transparent',
+            stroke: 'white',
+            strokeWidth: NOTE_SIZE * 0.15,
+            shadowBlur: 10,
+            shadowColor: 'black',
+            shadowOffset: { x: 0, y: 0 },
+            shadowOpacity: 0.8
+          }),
+          // inner color
+          new Konva.Circle({
+            x: note.x * WIDTH,
+            y: note.y * (HEIGHT - NOTE_SIZE * 2) + NOTE_SIZE,
+            radius: NOTE_SIZE * 0.85,
+            stroke: color.RING,
+            strokeWidth: NOTE_SIZE * 0.15,
+            fillRadialGradientColorStops: [
+              0, color.INNER,
+              1, 'white'
+            ],
+            fillRadialGradientStartRadius: NOTE_SIZE,
+            fillRadialGradientEndRadius: NOTE_SIZE / 4,
+          }),
+        ];
+        note.shape.forEach(shape => noteLayer.add(shape));
       }
     });
     // remove old notes
     pattern.notesToRemove().forEach(note => {
-      if (note.circle) note.circle.remove();
+      if (note.shape) note.shape.forEach(shape => shape.remove());
     });
 
-    layer.draw();
+    layers.forEach(layer => layer.draw());
     window.requestAnimationFrame(mainLoop);
   }
 
