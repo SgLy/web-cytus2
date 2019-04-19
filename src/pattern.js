@@ -10,7 +10,7 @@ module.exports = {
     const tempoList = pattern.tempo_list;
     const eventOrderList = pattern.event_order_list;
     const noteList = pattern.note_list;
-    let currentPageIndex, currentTick, finished, currentPage, nextPage, head, tail, lastHead, currentTempoIndex, currentTime;
+    let currentPageIndex, currentTick, finished, currentPage, nextPage, head, tail, removeHead, currentTempoIndex, currentTime, noteCount, removedCount;
     return {
       init() {
         currentPageIndex = 0;
@@ -19,13 +19,19 @@ module.exports = {
         currentTick = 0;
         passedTicks = 0;
         head = 0;
+        removeHead = 0;
         tail = 0;
         finished = false;
         currentPage = pageList[0];
         nextPage = pageList[1];
-        noteList.forEach(note => {
+        noteCount = noteList.length;
+        removedCount = 0;
+        noteList.forEach((note, i) => {
+          note.index = i;
           note.y = this.position(note.tick, pageList[note.page_index]);
           note.direction = pageList[note.page_index].scan_line_direction;
+          if (note.hold_tick > 0) note.hold_y = this.position(
+            note.tick + note.hold_tick, pageList[note.page_index]);
           delete note.shape;
         });
         this.updateTime(0);
@@ -42,6 +48,12 @@ module.exports = {
       currentTempo() {
         return tempoList[currentTempoIndex].value;
       },
+      currentPageIndex() {
+        return currentPageIndex;
+      },
+      passed(note) {
+        return currentTick >= note.tick + note.hold_tick + JUDGE_DELAY;
+      },
       nextTick() {
         currentTick++;
         currentTime += this.timePerTick();
@@ -53,10 +65,10 @@ module.exports = {
         while (currentTempoIndex + 1 < tempoList.length && currentTick >= tempoList[currentTempoIndex + 1].tick) currentTempoIndex++;
 
         while (tail < noteList.length && nextPage !== undefined && noteList[tail].tick < nextPage.end_tick) tail++;
-        while (head < tail && noteList[head].tick < currentTick + JUDGE_DELAY) head++;
+        while (head < tail && this.passed(noteList[head])) head++;
       },
       updateTime(time) {
-        lastHead = head;
+        removeHead = head;
         while (currentTime < time) this.nextTick();
       },
       isFinished() {
@@ -73,7 +85,24 @@ module.exports = {
         return noteList.slice(head, tail);
       },
       notesToRemove() {
-        return noteList.slice(lastHead, head);
+        return noteList.slice(removeHead, tail).filter(note => this.passed(note));
+      },
+      getNote(index) {
+        return noteList[index];
+      },
+      removeNote(index) {
+        if (!noteList[index].removed) {
+          noteList[index].removed = true;
+          removedCount++;
+        }
+      },
+      isRemoved(index) {
+        return noteList[index].removed;
+      },
+      score() {
+        const base = 900000 / noteCount * removedCount;
+        const combo = 100000 / ((noteCount - 1) * noteCount) * (removedCount * (removedCount - 1));
+        return base + combo;
       },
     }
   }

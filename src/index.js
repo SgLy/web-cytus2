@@ -1,62 +1,12 @@
 'use strict';
 
-const HEIGHT = Math.min(600, Math.floor(window.innerHeight * 0.9));
-const WIDTH = HEIGHT / 3 * 4;
-const NOTE_SIZE = HEIGHT / 15;
-const NOTE_TYPE = ['click', 'hold', 'long_hold', 'drag_head', 'drag_body'];
-const NOTE_COLOR = {
-  click: {
-    [1]: {
-      RING: '#3fc5bc',
-      INNER: '#6ef1e7',
-    },
-    [-1]: {
-      RING: '#2b64b6',
-      INNER: '#98f2ff',
-    },
-  },
-  hold: {
-    [1]: {
-      RING: '#ea5fc2',
-      INNER: 'white',
-    },
-    [-1]: {
-      RING: '#e5796c',
-      INNER: 'white',
-    },
-  },
-  long_hold: {
-    [1]: {
-      RING: '#fcdb5b',
-      INNER: '#ffe8ac',
-    },
-    [-1]: {
-      RING: '#fcdb5b',
-      INNER: '#ffe8ac',
-    },
-  },
-  drag_head: {
-    [-1]: {
-      RING: '#a72dd1',
-      INNER: '#d929ff',
-    },
-    [1]: {
-      RING: '#5e46ad',
-      INNER: '#6125ff',
-    }
-  },
-  drag_body: {
-    [-1]: {
-      INNER: '#d929ff',
-    },
-    [1]: {
-      INNER: '#6125ff',
-    },
-  },
-};
+const {
+  HEIGHT, WIDTH, NOTE_SIZE, NOTE_TYPE, NOTE_COLOR,
+  PATTERN, AUDIO, HIT_SOUND,
+} = require('./constants');
 
 const Konva = require('konva');
-const { Howl, Howler } = require('howler');
+const { Howl } = require('howler');
 const utils = require('./utils');
 
 // page setup
@@ -69,7 +19,7 @@ const container = document.createElement('div');
 container.id = 'container';
 root.append(container);
 
-const status = document.createElement('code');
+const status = document.createElement('pre');
 status.style = 'font-family: "Noto Mono"; font-size: 14px; line-height: 1.2';
 root.append(status);
 
@@ -84,29 +34,44 @@ const layers = [];
 // background
 const backgroundLayer = new Konva.Layer();
 layers.push(backgroundLayer);
+const border = new Konva.Rect({
+  x: NOTE_SIZE * 1.2,
+  y: NOTE_SIZE * 1.2,
+  height: HEIGHT - NOTE_SIZE * 2.4,
+  width: WIDTH - NOTE_SIZE * 2.4,
+  fill: 'transparent',
+  stroke: '#666666',
+  strokeWidth: 1,
+});
+backgroundLayer.add(border);
 backgroundLayer.add(new Konva.Rect({
   x: 0,
   y: 0,
   width: WIDTH,
   height: HEIGHT,
-  fill: 'black',
+  fill: '#777777',
   strokeWidth: 0,
-  opacity: 0.5,
 }));
 
 // note layer
 const noteLayer = new Konva.Layer();
 layers.push(noteLayer);
 
-// scanning line
-const scanningLineLayer = new Konva.Layer();
-layers.push(scanningLineLayer);
-const scanningLine = new Konva.Line({
+// functions to locate notes
+// affects border
+const X = x => x * (WIDTH - NOTE_SIZE * 2.4) + NOTE_SIZE * 1.2;
+const Y = y => y * (HEIGHT - NOTE_SIZE * 2.4) + NOTE_SIZE * 1.2;
+
+// scan line and border
+const scanLineLayer = new Konva.Layer();
+layers.push(scanLineLayer);
+const scanLine = new Konva.Line({
   points: [0, 0, WIDTH, 0],
   stroke: 'white',
   strokeWidth: HEIGHT / 200,
 });
-scanningLineLayer.add(scanningLine);
+scanLineLayer.add(scanLine);
+scanLineLayer.add(border);
 
 // all layers
 layers.forEach(layer => stage.add(layer));
@@ -114,41 +79,123 @@ layers.forEach(layer => stage.add(layer));
 // audio
 root.click();
 const audio = new Howl({
-  src: [require('./resources/v/v.ogg')],
-})
+  src: [AUDIO],
+});
+const click = new Howl({
+  src: [HIT_SOUND],
+});
 
 // core
 const { createPattern } = require('./pattern');
-const pattern = createPattern(require('./resources/v/v.json'));
+const pattern = createPattern(PATTERN);
 pattern.init();
 
+const rate = 1;
+const usingAudio = rate <= 4 && rate >= 0.5;
+const offset = 0;
 // main loop
-
 let lastTime = 0;
-let totalCost = 0, totalFrame = 0;
-let offset = 0;
+let totalCost = 0, maxCost = 0, totalFrame = 0;
 function mainLoop(aniTime) {
-  const time = audio.seek() * 1000;
+  let time;
+  if (usingAudio) time = audio.seek() * 1000;
+  else time = aniTime * rate + offset * 1000;
   const startRender = Date.now();
 
   if (!Number.isNaN(time)) pattern.updateTime(time);
   if (!pattern.isFinished()) {
     // draw line
-    scanningLine.offsetY(-pattern.linePosition() * HEIGHT);
+    scanLine.offsetY(-Y(pattern.linePosition()));
 
     // draw notes
+    const zIndexes = [];
     pattern.notes().forEach(note => {
+      if (!NOTE_TYPE[note.type]) console.log('unknown type ', note.type);
+      const type = NOTE_TYPE[note.type] || 'click';
+      const color = NOTE_COLOR[type][note.direction];
+      let size = NOTE_SIZE * (['drag_body', 'click_drag_body'].indexOf(type) !== -1 ? 0.5 : 1);
+      if (type === 'flick') size /= 1.2;
+      // const groupScaler = note.page_index !== pattern.currentPageIndex() ? 0.5 : 1;
+      const centerColor = ['drag_body', 'drag_body', 'click_drag_body', 'long_hold'].indexOf(type) !== -1 ? color.INNER : 'white';
       if (!note.shape) {
-        const type = NOTE_TYPE[note.type] || 'click';
-        const color = NOTE_COLOR[type][note.direction];
-        const size = NOTE_SIZE * (type === 'drag_body' ? 0.5 : 1);
-        const centerColor = type === 'drag_body' || type === 'drag_head' ? color.INNER : 'white';
-        console.log(size);
-        note.shape = [
+        note.shape = [];
+        // drag line
+        if (note.next_id > 0) {
+          const next = pattern.getNote(note.next_id);
+          const dragLine = new Konva.Line({
+            points: [ X(note.x), Y(note.y), X(next.x), Y(next.y) ],
+            stroke: 'white',
+            strokeWidth: NOTE_SIZE * 0.4,
+            dash: [NOTE_SIZE * 0.1, NOTE_SIZE * 0.1],
+          });
+          zIndexes.push([next.index * 3, dragLine]);
+          note.shape.push(dragLine);
+        }
+        // short hold body
+        if (type === 'hold') {
+          const holdBody = new Konva.Line({
+            points: [ X(note.x), Y(note.y), X(note.x), Y(note.hold_y) ],
+            stroke: 'white',
+            strokeWidth: NOTE_SIZE,
+            dash: [NOTE_SIZE * 0.15, NOTE_SIZE * 0.15],
+          });
+          zIndexes.push([note.index * 3, holdBody]);
+          note.shape.push(holdBody);
+        }
+        // long hold body
+        if (type === 'long_hold') {
+          const holdBody = new Konva.Line({
+            points: [
+              X(note.x), 0,
+              X(note.x), HEIGHT,
+            ],
+            stroke: color.INNER,
+            strokeWidth: NOTE_SIZE,
+            dash: [NOTE_SIZE * 0.15, NOTE_SIZE * 0.15],
+          });
+          zIndexes.push([note.index * 3, holdBody]);
+          note.shape.push(holdBody);
+        }
+        // flick
+        if (type === 'flick') {
           // outer white ring
-          new Konva.Circle({
-            x: note.x * WIDTH,
-            y: note.y * (HEIGHT - NOTE_SIZE * 2) + NOTE_SIZE,
+          const outer = new Konva.Rect({
+            x: X(note.x),
+            y: Y(note.y),
+            width: size * 2,
+            height: size * 2,
+            fill: 'transparent',
+            stroke: 'white',
+            strokeWidth: size * 0.18,
+            shadowBlur: 10,
+            shadowColor: 'black',
+            shadowOffset: { x: 0, y: 0 },
+            shadowOpacity: 0.8,
+          });
+          outer.offsetX(outer.width() / 2);
+          outer.offsetY(outer.height() / 2);
+          outer.rotate(45);
+          zIndexes.push([note.index * 3 - 1, outer]);
+          // inner color
+          const inner = new Konva.Rect({
+            x: X(note.x),
+            y: Y(note.y),
+            width: size * 0.82 * 2,
+            height: size * 0.82 * 2,
+            stroke: color.RING,
+            strokeWidth: size * 0.18,
+            fill: color.INNER,
+          });
+          inner.offsetX(inner.width() / 2);
+          inner.offsetY(inner.height() / 2);
+          inner.rotate(45);
+          zIndexes.push([note.index * 3 - 2, inner]);
+          note.shape.push(inner, outer);
+        } else {
+          // outer white ring
+          const outer = new Konva.Circle({
+            x: X(note.x),
+            y: Y(note.y),
             radius: size,
             fill: 'transparent',
             stroke: 'white',
@@ -156,30 +203,47 @@ function mainLoop(aniTime) {
             shadowBlur: 10,
             shadowColor: 'black',
             shadowOffset: { x: 0, y: 0 },
-            shadowOpacity: 0.8
-          }),
+            shadowOpacity: 0.8,
+          });
           // inner color
-          new Konva.Circle({
-            x: note.x * WIDTH,
-            y: note.y * (HEIGHT - NOTE_SIZE * 2) + NOTE_SIZE,
-            radius: size * (0.85 + (type === 'drag_body' ? 0.075 : 0)),
+          const inner = new Konva.Circle({
+            x: X(note.x),
+            y: Y(note.y),
+            radius: size * 0.85,
             stroke: color.RING,
-            strokeWidth: type === 'drag_body' ? 0 : size * 0.15,
+            strokeWidth: size * 0.15,
             fillRadialGradientColorStops: [
               0, color.INNER,
               1, centerColor
             ],
             fillRadialGradientStartRadius: size,
             fillRadialGradientEndRadius: size / 4,
-          }),
-        ];
-        note.shape.forEach(shape => noteLayer.add(shape));
+          });
+          zIndexes.push([note.index * 3 - 1, outer]);
+          zIndexes.push([note.index * 3 - 2, inner]);
+          note.shape.push(inner, outer);
+        }
+        note.shape.forEach(shape => {
+          shape.cache();
+          shape.filters([Konva.Filters.Contrast]);
+          shape.contrast(-50);
+          noteLayer.add(shape);
+        });
+      } else if (note.page_index === pattern.currentPageIndex() && !note.flag) {
+        note.flag = true;
+        note.shape.forEach(shape => { shape.contrast(0); });
       }
     });
     // remove old notes
     pattern.notesToRemove().forEach(note => {
       if (note.shape) note.shape.forEach(shape => shape.remove());
+      if (!pattern.isRemoved(note.index)) {
+        click.play();
+        pattern.removeNote(note.index);
+      }
     });
+    zIndexes.sort((a, b) => b[0] - a[0]);
+    zIndexes.forEach(([_, shape], z) => shape.zIndex(z));
 
     layers.forEach(layer => layer.draw());
     window.requestAnimationFrame(mainLoop);
@@ -187,35 +251,54 @@ function mainLoop(aniTime) {
 
   // status
   const message = [];
-  message.push(time.toFixed(3) + ' ms');
-  message.push(pattern.currentTick().toFixed(0) + ' tick');
-  message.push(pattern.currentTempo() + ' tempo');
+  message.push([
+    `Time: ${time.toFixed(3)} ms`,
+    `Tick: ${pattern.currentTick().toFixed(0)}`,
+    `Tempo: ${pattern.currentTempo()}`,
+    `Playback rate: ${rate.toFixed(2)}x`,
+  ]);
+
+  message.push([
+    `Score: ${pattern.score().toFixed(0)}`,
+    `TP: 100.00`,
+  ]);
 
   const renderCost = Date.now() - startRender;
   totalFrame++;
   totalCost += renderCost;
-  const avgCost = totalCost / totalFrame
-  message.push(`${renderCost} / ${avgCost.toFixed(2)} ms`);
+  const avgCost = totalCost / totalFrame;
+  maxCost = Math.max(maxCost, renderCost);
+  message.push([
+    `Frame render time: ${renderCost} ms`,
+    `Max: ${maxCost} ms`,
+    `Avg: ${avgCost.toFixed(2)} ms`,
+  ]);
   if (aniTime > 0) {
     const fps = 1000 / (aniTime - lastTime);
     const totalFps = totalFrame / (aniTime / 1000);
-    message.push(`${fps.toFixed(2)} / ${totalFps.toFixed(2)} FPS`);
+    message.push([
+      `Frame per second: ${fps.toFixed(1)}`,
+      `Avg: ${totalFps.toFixed(2)}`
+    ]);
   }
   lastTime = aniTime;
 
-  if (pattern.isFinished()) message.push('Finished');
+  if (pattern.isFinished()) message.push(['Finished']);
 
-  status.innerHTML = message.join('; ');
+  status.innerHTML = message.map(m => m.join('; ')).join('\n');
 }
 
 window.onload = () => {
   audio.on('load', () => {
-    audio.play();
-    // audio.seek(7);
+    if (usingAudio) {
+      audio.seek(offset);
+      audio.rate(rate);
+      audio.play();
+    }
     window.requestAnimationFrame(mainLoop);
     setTimeout(() => {
       console.log(pattern.notes());
-    }, 300);
+    }, 100);
   });
 };
 
