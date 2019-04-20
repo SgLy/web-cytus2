@@ -28,11 +28,8 @@ const baseConfig = {
   module: {
     rules: [
       {
-        test: /\.(?:css|less)$/,
-        use: [
-          'css-loader',
-          'less-loader'
-        ]
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader'],
       },
       {
         test: /\.(png|jpg|jpeg|gif|eot|ttf|woff|woff2|svg|svgz)(\?.+)?$/,

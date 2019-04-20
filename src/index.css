@@ -1,0 +1,29 @@
+#status {
+  font-family: Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+#controller {
+  display: flex;
+  flex-direction: row;
+}
+
+#controller>div {
+  width: 30px;
+  height: 30px;
+  line-height: 30px;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 50%;
+  box-shadow: 0 0 5px 0 #00000077;
+  margin: 10px;
+}
+
+#controller>div:hover {
+  box-shadow: 0 0 7px 0 #000000
+}
+
+#seek {
+  flex: 1;
+}

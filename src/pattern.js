@@ -104,6 +104,12 @@ module.exports = {
         const combo = 100000 / ((noteCount - 1) * noteCount) * (removedCount * (removedCount - 1));
         return base + combo;
       },
+      tp() {
+        return 100 * removedCount / noteCount;
+      },
+      combo() {
+        return removedCount;
+      },
     }
   }
 }

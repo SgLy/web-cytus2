@@ -1,6 +1,3 @@
-const HEIGHT = Math.min(1536, Math.floor(window.innerHeight * 0.8));
-const WIDTH = HEIGHT / 3 * 4;
-const NOTE_SIZE = HEIGHT / 15;
 const NOTE_TYPE = [
   'click', 'hold', 'long_hold',
   'drag_head', 'drag_body', 'flick',
@@ -89,11 +86,6 @@ const NOTE_COLOR = {
   },
 };
 
-const PATTERN = require('./resources/patterns/ivy001_005_2.json');
-const AUDIO = require('./resources/audio/ivy001_005.mp3');
 const HIT_SOUND = require('./resources/beat.wav');
 
-module.exports = {
-  HEIGHT, WIDTH, NOTE_SIZE, NOTE_TYPE, NOTE_COLOR,
-  PATTERN, AUDIO, HIT_SOUND,
-};
+module.exports = { NOTE_TYPE, NOTE_COLOR, HIT_SOUND };
