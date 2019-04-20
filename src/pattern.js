@@ -51,6 +51,9 @@ module.exports = {
       currentPageIndex() {
         return currentPageIndex;
       },
+      isHolding(note) {
+        return note.hold_tick > 0 && note.tick <= currentTick && currentTick < note.tick + note.hold_tick;
+      },
       passed(note) {
         return currentTick >= note.tick + note.hold_tick + JUDGE_DELAY;
       },

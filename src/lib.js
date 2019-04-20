@@ -111,13 +111,13 @@ const WebCytus2 = function (config) {
       // draw notes
       const zIndexes = [];
       pattern.notes().forEach(note => {
+        if (pattern.isRemoved(note.index)) return;
         if (!NOTE_TYPE[note.type]) console.log('unknown type ', note.type);
         const type = NOTE_TYPE[note.type] || 'click';
         const color = NOTE_COLOR[type][note.direction];
         let size = NOTE_SIZE * (['drag_body', 'click_drag_body'].indexOf(type) !== -1 ? 0.5 : 1);
         if (type === 'flick') size /= 1.2;
-        // const groupScaler = note.page_index !== pattern.currentPageIndex() ? 0.5 : 1;
-        const centerColor = ['drag_body', 'drag_body', 'click_drag_body', 'long_hold'].indexOf(type) !== -1 ? color.INNER : 'white';
+        const centerColor = ['drag_body', 'click_drag_body', 'long_hold'].indexOf(type) !== -1 ? color.INNER : 'white';
         if (!note.shape) {
           note.shape = [];
           // drag line
@@ -129,6 +129,7 @@ const WebCytus2 = function (config) {
               strokeWidth: NOTE_SIZE * 0.4,
               dash: [NOTE_SIZE * 0.1, NOTE_SIZE * 0.1],
             });
+            dragLine.isLine = true;
             zIndexes.push([next.index * 3, dragLine]);
             note.shape.push(dragLine);
           }
@@ -140,6 +141,7 @@ const WebCytus2 = function (config) {
               strokeWidth: NOTE_SIZE,
               dash: [NOTE_SIZE * 0.15, NOTE_SIZE * 0.15],
             });
+            holdBody.isLine = true;
             zIndexes.push([note.index * 3, holdBody]);
             note.shape.push(holdBody);
           }
@@ -154,6 +156,7 @@ const WebCytus2 = function (config) {
               strokeWidth: NOTE_SIZE,
               dash: [NOTE_SIZE * 0.15, NOTE_SIZE * 0.15],
             });
+            holdBody.isLine = true;
             zIndexes.push([note.index * 3, holdBody]);
             note.shape.push(holdBody);
           }
@@ -229,11 +232,39 @@ const WebCytus2 = function (config) {
             shape.cache();
             shape.filters([Konva.Filters.Contrast]);
             shape.contrast(-50);
+            if (shape.isLine !== true) {
+              shape.scaleX(0.8);
+              shape.scaleY(0.8);
+            }
             noteLayer.add(shape);
           });
-        } else if (note.page_index === pattern.currentPageIndex() && !note.flag) {
-          note.flag = true;
-          note.shape.forEach(shape => { shape.contrast(0); });
+        } else if (note.page_index === pattern.currentPageIndex() && !note.pageSwitched) {
+          // switch note from back page to front page
+          note.pageSwitched = true;
+          note.shape.forEach(shape => {
+            const switchPageEffect = new Konva.Tween({
+              node: shape,
+              duration: 0.1,
+              contrast: 0,
+              scaleX: 1,
+              scaleY: 1,
+              easing: Konva.Easings.EaseIn,
+            });
+            switchPageEffect.play();
+          });
+        } else if (pattern.isHolding(note) && !note.hasHoldingEffect) {
+          note.hasHoldingEffect = true;
+          note.shape.forEach(shape => {
+            if (shape.isLine === true) return;
+            const holdingEffect = new Konva.Tween({
+              node: shape,
+              duration: 0.1,
+              scaleX: 1.2,
+              scaleY: 1.2,
+              easing: Konva.Easings.EaseIn,
+            });
+            holdingEffect.play();
+          });
         }
       });
       // remove old notes
@@ -242,10 +273,29 @@ const WebCytus2 = function (config) {
           if (note.shape) click.play();
           pattern.removeNote(note.index);
         }
-        if (note.shape) note.shape.forEach(shape => {
-          shape.remove();
-          shape.destroy();
-        });
+        if (note.shape) {
+          note.shape.forEach(shape => {
+            if (shape.isLine === true) {
+              shape.remove();
+              shape.destroy();
+              return;
+            }
+            const hitEffect = new Konva.Tween({
+              node: shape,
+              duration: 0.1,
+              scaleX: 1.2,
+              scaleY: 1.2,
+              opacity: 0,
+              easing: Konva.Easings.Linear,
+              onFinish() {
+                shape.remove();
+                shape.destroy();
+              }
+            });
+            hitEffect.play();
+          });
+          delete note.shape;
+        }
       });
       zIndexes.sort((a, b) => b[0] - a[0]);
       zIndexes.forEach(([_, shape], z) => shape.zIndex(z));
@@ -347,7 +397,6 @@ const WebCytus2 = function (config) {
     if (usingAudio) {
       audio.seek(offset);
       playingId = audio.play();
-      console.log(playingId);
     }
     window.requestAnimationFrame(mainLoop);
   }
