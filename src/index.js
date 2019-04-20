@@ -37,8 +37,8 @@ const cy = new WebCytus2({
   height, width,
   container: 'container',
   statusContainer: 'status',
-  audio: require('./resources/audio/ivy001_008.mp3'),
-  pattern: require('./resources/patterns/ivy001_008_2.json'),
+  audio: require('./resources/audio/ivy001_014.mp3'),
+  pattern: require('./resources/patterns/ivy001_014_2.json'),
 });
 
 const progress = document.getElementById('seek');
@@ -76,4 +76,3 @@ cy.ready(() => {
   cy.play();
   play.innerHTML = '||';
 });
-// cy.seekTo();

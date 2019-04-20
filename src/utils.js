@@ -5,4 +5,7 @@ module.exports = {
   floatMod(a, b) {
     return a - this.floatDiv(a, b) * b;
   },
+  sqr(x) {
+    return x * x;
+  }
 }

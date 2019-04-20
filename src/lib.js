@@ -5,6 +5,8 @@ const { Howl } = require('howler');
 
 const { NOTE_TYPE, NOTE_COLOR, HIT_SOUND } = require('./constants');
 const { createPattern } = require('./pattern');
+const utils = require('./utils');
+
 
 /**
  * @class WebCytus2
@@ -117,9 +119,32 @@ const WebCytus2 = function (config) {
         const color = NOTE_COLOR[type][note.direction];
         let size = NOTE_SIZE * (['drag_body', 'click_drag_body'].indexOf(type) !== -1 ? 0.5 : 1);
         if (type === 'flick') size /= 1.2;
-        const centerColor = ['drag_body', 'click_drag_body', 'long_hold'].indexOf(type) !== -1 ? color.INNER : 'white';
+        const centerColor = ['drag_head', 'drag_body', 'click_drag_head', 'click_drag_body', 'long_hold'].indexOf(type) !== -1 ? color.INNER : 'white';
         if (!note.shape) {
           note.shape = [];
+          // drag arrow
+          if (type === 'drag_head' || type === 'click_drag_head') {
+            const next = pattern.getNote(note.next_id);
+            const srcX = X(note.x), srcY = Y(note.y);
+            const destX = X(next.x), destY = Y(next.y);
+            const offsetX = destX - srcX, offsetY = srcY - destY;
+            const rad = Math.atan2(offsetY, offsetX);
+            const ang = -rad / Math.PI * 180 + 90;
+            const arrow = new Konva.Line({
+              x: srcX, y: srcY,
+              points: [
+                0, 0.1 * NOTE_SIZE,
+                0.4 * NOTE_SIZE, 0.3 * NOTE_SIZE,
+                0, -0.4 * NOTE_SIZE,
+                -0.4 * NOTE_SIZE, 0.3 * NOTE_SIZE
+              ],
+              fill: 'white',
+              closed: true,
+            });
+            arrow.rotate(ang);
+            zIndexes.push([note.index * 4 - 3, arrow]);
+            note.shape.push(arrow);
+          }
           // drag line
           if (note.next_id > 0) {
             const next = pattern.getNote(note.next_id);
@@ -130,7 +155,7 @@ const WebCytus2 = function (config) {
               dash: [NOTE_SIZE * 0.1, NOTE_SIZE * 0.1],
             });
             dragLine.isLine = true;
-            zIndexes.push([next.index * 3, dragLine]);
+            zIndexes.push([next.index * 4, dragLine]);
             note.shape.push(dragLine);
           }
           // short hold body
@@ -142,7 +167,7 @@ const WebCytus2 = function (config) {
               dash: [NOTE_SIZE * 0.15, NOTE_SIZE * 0.15],
             });
             holdBody.isLine = true;
-            zIndexes.push([note.index * 3, holdBody]);
+            zIndexes.push([note.index * 4, holdBody]);
             note.shape.push(holdBody);
           }
           // long hold body
@@ -157,7 +182,7 @@ const WebCytus2 = function (config) {
               dash: [NOTE_SIZE * 0.15, NOTE_SIZE * 0.15],
             });
             holdBody.isLine = true;
-            zIndexes.push([note.index * 3, holdBody]);
+            zIndexes.push([note.index * 4, holdBody]);
             note.shape.push(holdBody);
           }
           // flick
@@ -179,7 +204,7 @@ const WebCytus2 = function (config) {
             outer.offsetX(outer.width() / 2);
             outer.offsetY(outer.height() / 2);
             outer.rotate(45);
-            zIndexes.push([note.index * 3 - 1, outer]);
+            zIndexes.push([note.index * 4 - 1, outer]);
             // inner color
             const inner = new Konva.Rect({
               x: X(note.x),
@@ -193,7 +218,7 @@ const WebCytus2 = function (config) {
             inner.offsetX(inner.width() / 2);
             inner.offsetY(inner.height() / 2);
             inner.rotate(45);
-            zIndexes.push([note.index * 3 - 2, inner]);
+            zIndexes.push([note.index * 4 - 2, inner]);
             note.shape.push(inner, outer);
           } else {
             // outer white ring
@@ -223,12 +248,11 @@ const WebCytus2 = function (config) {
               fillRadialGradientStartRadius: size,
               fillRadialGradientEndRadius: size / 4,
             });
-            zIndexes.push([note.index * 3 - 1, outer]);
-            zIndexes.push([note.index * 3 - 2, inner]);
+            zIndexes.push([note.index * 4 - 1, outer]);
+            zIndexes.push([note.index * 4 - 2, inner]);
             note.shape.push(inner, outer);
           }
           note.shape.forEach(shape => {
-            shape.perfectDrawEnabled(false);
             shape.cache();
             shape.filters([Konva.Filters.Contrast]);
             shape.contrast(-50);
