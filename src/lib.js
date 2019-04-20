@@ -19,6 +19,7 @@ const utils = require('./utils');
  * @param {String=} config.statusContainer - id of status container element
  * @param {String=} config.audio - audio url
  * @param {String} config.pattern - pattern url
+ * @param {Boolean} [config.showBorder = false] - show border
  */
 const WebCytus2 = function (config) {
   const HEIGHT = config.height;
@@ -49,15 +50,17 @@ const WebCytus2 = function (config) {
     stroke: '#666666',
     strokeWidth: 1,
   });
-  backgroundLayer.add(border);
-  backgroundLayer.add(new Konva.Rect({
-    x: 0,
-    y: 0,
-    width: WIDTH,
-    height: HEIGHT,
-    fill: '#777777',
-    strokeWidth: 0,
-  }));
+  if (config.showBorder) {
+    backgroundLayer.add(new Konva.Rect({
+      x: 0,
+      y: 0,
+      width: WIDTH,
+      height: HEIGHT,
+      fill: '#6f6f6f',
+      strokeWidth: 0,
+    }));
+    backgroundLayer.add(border);
+  }
 
   // note layer
   const noteLayer = new Konva.Layer();
@@ -77,7 +80,6 @@ const WebCytus2 = function (config) {
     strokeWidth: HEIGHT / 200,
   });
   scanLineLayer.add(scanLine);
-  scanLineLayer.add(border);
 
   // all layers
   layers.forEach(layer => stage.add(layer));
