@@ -5,6 +5,9 @@
 }
 
 #controller {
+  height: 30px;
+  line-height: 30px;
+  padding: 10px;
   display: flex;
   flex-direction: row;
 }
@@ -17,7 +20,7 @@
   cursor: pointer;
   border-radius: 50%;
   box-shadow: 0 0 5px 0 #00000077;
-  margin: 10px;
+  margin: 0 10px;
 }
 
 #controller>div:hover {

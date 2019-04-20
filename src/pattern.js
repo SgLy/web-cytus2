@@ -2,7 +2,7 @@ const utils = require('./utils');
 
 module.exports = {
   createPattern(pattern) {
-    const JUDGE_DELAY = 0.05;
+    const JUDGE_DELAY = 0;
     const formatVersion = pattern.format_version;
     const timeBase = pattern.time_base;
     const startOffsetTime = pattern.start_offset_time;

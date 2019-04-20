@@ -88,16 +88,19 @@ const WebCytus2 = function (config) {
   const pattern = createPattern(config.pattern);
   pattern.init();
 
+  const timeUpdateListener = [];
+
   let rate = 1;
   const usingAudio = audio && rate <= 4 && rate >= 0.5;
   const offset = 0;
   // main loop
-  let lastTime = 0;
+  let lastTime = 0, time = 0;
+  let playingId;
   let totalCost = 0, maxCost = 0, totalFrame = 0;
   function mainLoop(aniTime) {
-    let time;
     if (usingAudio) time = audio.seek() * 1000;
     else time = aniTime * rate + offset * 1000;
+    timeUpdateListener.forEach(f => f(time));
     const startRender = Date.now();
 
     if (!Number.isNaN(time)) pattern.updateTime(time);
@@ -235,14 +238,14 @@ const WebCytus2 = function (config) {
       });
       // remove old notes
       pattern.notesToRemove().forEach(note => {
+        if (!pattern.isRemoved(note.index)) {
+          if (note.shape) click.play();
+          pattern.removeNote(note.index);
+        }
         if (note.shape) note.shape.forEach(shape => {
           shape.remove();
           shape.destroy();
         });
-        if (!pattern.isRemoved(note.index)) {
-          click.play();
-          pattern.removeNote(note.index);
-        }
       });
       zIndexes.sort((a, b) => b[0] - a[0]);
       zIndexes.forEach(([_, shape], z) => shape.zIndex(z));
@@ -260,7 +263,7 @@ const WebCytus2 = function (config) {
       `Time: ${time.toFixed(3)} ms`,
       `Tick: ${pattern.currentTick().toFixed(0)}`,
       `Tempo: ${pattern.currentTempo()}`,
-      `Playback rate: ${rate.toFixed(2)}x`,
+      `Playback rate: ${rate.toFixed(4)}x`,
     ]);
 
     message.push([
@@ -293,18 +296,65 @@ const WebCytus2 = function (config) {
     status.innerHTML = message.map(m => m.join('; ')).join('\n');
   }
 
-  this.play = () => {
-    if (usingAudio) {
-      audio.on('load', () => {
-        audio.seek(offset);
-        audio.rate(rate);
-        audio.play();
-        window.requestAnimationFrame(mainLoop);
-      });
-    } else {
-      window.requestAnimationFrame(mainLoop);
+  const readyListener = [];
+  this.ready = listener => {
+    readyListener.push(listener);
+  }
+
+  this.duration = () => {
+    return audio.duration();
+  }
+
+  this.onTimeUpdate = listener => {
+    timeUpdateListener.push(listener);
+  }
+
+  this.rate = r => {
+    rate = r;
+    if (audio) audio.rate(r);
+  }
+
+  this.currentTime = () => time;
+
+  this.seekTo = t => {
+    if (t > time) {
+      audio.seek(t / 1000);
     }
   }
+
+  this.playing = () => {
+    if (audio) return audio.playing();
+  }
+
+  this.pause = () => {
+    if (audio) audio.pause();
+  }
+
+  this.resume = () => {
+    if (audio) audio.play(playingId);
+  }
+
+  this.stop = () => {
+    if (audio) audio.stop();
+  }
+
+  this.volume = v => {
+    if (audio) audio.volume(v);
+    click.volume(v);
+  }
+
+  this.play = () => {
+    if (usingAudio) {
+      audio.seek(offset);
+      playingId = audio.play();
+      console.log(playingId);
+    }
+    window.requestAnimationFrame(mainLoop);
+  }
+
+  audio.on('load', () => {
+    readyListener.forEach(f => f());
+  });
 }
 
 module.exports = WebCytus2;
