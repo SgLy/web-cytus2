@@ -12,15 +12,12 @@ const root = document.createElement('div');
 const body = document.getElementsByTagName('body')[0];
 body.append(root);
 
-const container = document.createElement('div');
-container.id = 'container';
-root.append(container);
-
 const controller = document.createElement('div');
 controller.id = 'controller';
 controller.style = `width: ${width}px`;
 root.append(controller);
 controller.innerHTML = `
+  <div id="full">[]</div>
   <div id="prev"><</div>
   <div id="play">+</div>
   <div id="next">></div>
@@ -28,6 +25,22 @@ controller.innerHTML = `
   Rate: <input type="range" id="rate" min="-6" max="6" value="0" step="1">
   Volume: <input type="range" id="vol" min="0" max="1" value="1" step="0.01">
 `;
+
+const container = document.createElement('div');
+container.id = 'container';
+root.append(container);
+
+document.getElementById('full').onclick = () => {
+  const doc = window.document;
+  const requestFullScreen = container.requestFullscreen || container.mozRequestFullScreen || container.webkitRequestFullScreen || container.msRequestFullscreen;
+  const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+  if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+    requestFullScreen.call(container);
+  } else {
+    cancelFullScreen.call(doc);
+  }
+};
 
 const status = document.createElement('pre');
 status.id = 'status';
@@ -37,9 +50,10 @@ const cy = new WebCytus2({
   height, width,
   container: 'container',
   statusContainer: 'status',
-  audio: require('./resources/audio/paff001_013.mp3'),
-  pattern: require('./resources/patterns/paff001_013_2.json'),
+  audio: require('./resources/audio/ivy001_014.mp3'),
+  pattern: require('./resources/patterns/ivy001_014_2.json'),
   showBorder: true,
+  displayType: 'group',
 });
 
 const progress = document.getElementById('seek');

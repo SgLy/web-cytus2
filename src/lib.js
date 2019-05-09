@@ -1,6 +1,7 @@
 'use strict';
 
 const Konva = require('konva');
+// Konva.pixelRatio = 1;
 const { Howl } = require('howler');
 
 const { NOTE_TYPE, NOTE_COLOR, HIT_SOUND } = require('./constants');
@@ -19,12 +20,15 @@ const utils = require('./utils');
  * @param {String=} config.statusContainer - id of status container element
  * @param {String=} config.audio - audio url
  * @param {String} config.pattern - pattern url
+ * @param {String} [config.displayType = 'group'] - display type, default or group
  * @param {Boolean} [config.showBorder = false] - show border
  */
 const WebCytus2 = function (config) {
   const HEIGHT = config.height;
   const WIDTH = config.width;
   const NOTE_SIZE = HEIGHT / 15;
+
+  const display = config.displayType || 'group';
 
   const AUDIO = config.audio;
 
@@ -92,6 +96,160 @@ const WebCytus2 = function (config) {
   const pattern = createPattern(config.pattern);
   pattern.init();
 
+  // made note
+  console.time('Create Konva shapes');
+  pattern.allNotes().forEach(note => {
+    if (!NOTE_TYPE[note.type]) console.log('unknown type ', note.type);
+    const type = NOTE_TYPE[note.type] || 'click';
+    const color = NOTE_COLOR[type][note.direction];
+    let size = NOTE_SIZE * (['drag_body', 'click_drag_body'].indexOf(type) !== -1 ? 0.5 : 1);
+    if (type === 'flick') size /= 1.2;
+    const centerColor = ['drag_head', 'drag_body', 'click_drag_head', 'click_drag_body', 'long_hold'].indexOf(type) !== -1 ? color.INNER : 'white';
+    note.shape = [];
+    // drag arrow
+    if (type === 'drag_head' || type === 'click_drag_head') {
+      const next = pattern.getNote(note.next_id);
+      const srcX = X(note.x), srcY = Y(note.y);
+      const destX = X(next.x), destY = Y(next.y);
+      const offsetX = destX - srcX, offsetY = srcY - destY;
+      const rad = Math.atan2(offsetY, offsetX);
+      const ang = -rad / Math.PI * 180 + 90;
+      const arrow = new Konva.Line({
+        x: srcX, y: srcY,
+        points: [
+          0, 0.1 * NOTE_SIZE,
+          0.4 * NOTE_SIZE, 0.3 * NOTE_SIZE,
+          0, -0.4 * NOTE_SIZE,
+          -0.4 * NOTE_SIZE, 0.3 * NOTE_SIZE
+        ],
+        fill: 'white',
+        closed: true,
+      });
+      arrow.rotate(ang);
+      arrow.zPosition = note.index * 4 - 3;
+      note.shape.push(arrow);
+    }
+    // drag line
+    if (note.next_id > 0) {
+      const next = pattern.getNote(note.next_id);
+      const dragLine = new Konva.Line({
+        points: [ X(note.x), Y(note.y), X(next.x), Y(next.y) ],
+        stroke: 'white',
+        strokeWidth: NOTE_SIZE * 0.4,
+        dash: [NOTE_SIZE * 0.1, NOTE_SIZE * 0.1],
+      });
+      dragLine.isLine = true;
+      dragLine.zPosition = next.index * 4;
+      note.shape.push(dragLine);
+    }
+    // short hold body
+    if (type === 'hold') {
+      const holdBody = new Konva.Line({
+        points: [ X(note.x), Y(note.y), X(note.x), Y(note.hold_y) ],
+        stroke: 'white',
+        strokeWidth: NOTE_SIZE,
+        dash: [NOTE_SIZE * 0.15, NOTE_SIZE * 0.15],
+      });
+      holdBody.isLine = true;
+      holdBody.zPosition = note.index * 4;
+      note.shape.push(holdBody);
+    }
+    // long hold body
+    if (type === 'long_hold') {
+      const holdBody = new Konva.Line({
+        points: [
+          X(note.x), 0,
+          X(note.x), HEIGHT,
+        ],
+        stroke: color.INNER,
+        strokeWidth: NOTE_SIZE,
+        dash: [NOTE_SIZE * 0.15, NOTE_SIZE * 0.15],
+      });
+      holdBody.isLine = true;
+      holdBody.zPosition = note.index * 4;
+      note.shape.push(holdBody);
+    }
+    // flick
+    if (type === 'flick') {
+      // outer white ring
+      const outer = new Konva.Rect({
+        x: X(note.x),
+        y: Y(note.y),
+        width: size * 2,
+        height: size * 2,
+        fill: 'transparent',
+        stroke: 'white',
+        strokeWidth: size * 0.18,
+        shadowBlur: 10,
+        shadowColor: 'black',
+        shadowOffset: { x: 0, y: 0 },
+        shadowOpacity: 0.8,
+      });
+      outer.offsetX(outer.width() / 2);
+      outer.offsetY(outer.height() / 2);
+      outer.rotate(45);
+      outer.zPosition = note.index * 4 - 1;
+      // inner color
+      const inner = new Konva.Rect({
+        x: X(note.x),
+        y: Y(note.y),
+        width: size * 0.82 * 2,
+        height: size * 0.82 * 2,
+        stroke: color.RING,
+        strokeWidth: size * 0.18,
+        fill: color.INNER,
+      });
+      inner.offsetX(inner.width() / 2);
+      inner.offsetY(inner.height() / 2);
+      inner.rotate(45);
+      inner.zPosition = note.index * 4 - 2;
+      note.shape.push(inner, outer);
+    } else {
+      // outer white ring
+      const outer = new Konva.Circle({
+        x: X(note.x),
+        y: Y(note.y),
+        radius: size,
+        fill: 'transparent',
+        stroke: 'white',
+        strokeWidth: size * 0.15,
+        shadowBlur: 10,
+        shadowColor: 'black',
+        shadowOffset: { x: 0, y: 0 },
+        shadowOpacity: 0.8,
+      });
+      // inner color
+      const inner = new Konva.Circle({
+        x: X(note.x),
+        y: Y(note.y),
+        radius: size * 0.85,
+        stroke: color.RING,
+        strokeWidth: size * 0.15,
+        fillRadialGradientColorStops: [
+          0, color.INNER,
+          1, centerColor
+        ],
+        fillRadialGradientStartRadius: size,
+        fillRadialGradientEndRadius: size / 4,
+      });
+      outer.zPosition = note.index * 4 - 1;
+      inner.zPosition = note.index * 4 - 2;
+      note.shape.push(inner, outer);
+    }
+    note.shape.forEach(shape => {
+      shape.cache();
+      if (display === 'group') {
+        shape.filters([Konva.Filters.Contrast]);
+        shape.contrast(-50);
+        if (shape.isLine !== true) {
+          shape.scaleX(0.8);
+          shape.scaleY(0.8);
+        }
+      }
+    });
+  });
+  console.timeEnd('Create Konva shapes');
+
   const timeUpdateListener = [];
 
   let rate = 1;
@@ -114,157 +272,13 @@ const WebCytus2 = function (config) {
 
       // draw notes
       const zIndexes = [];
-      pattern.notes().forEach(note => {
+      pattern.currentNotes().forEach(note => {
         if (pattern.isRemoved(note.index)) return;
-        if (!NOTE_TYPE[note.type]) console.log('unknown type ', note.type);
-        const type = NOTE_TYPE[note.type] || 'click';
-        const color = NOTE_COLOR[type][note.direction];
-        let size = NOTE_SIZE * (['drag_body', 'click_drag_body'].indexOf(type) !== -1 ? 0.5 : 1);
-        if (type === 'flick') size /= 1.2;
-        const centerColor = ['drag_head', 'drag_body', 'click_drag_head', 'click_drag_body', 'long_hold'].indexOf(type) !== -1 ? color.INNER : 'white';
-        if (!note.shape) {
-          note.shape = [];
-          // drag arrow
-          if (type === 'drag_head' || type === 'click_drag_head') {
-            const next = pattern.getNote(note.next_id);
-            const srcX = X(note.x), srcY = Y(note.y);
-            const destX = X(next.x), destY = Y(next.y);
-            const offsetX = destX - srcX, offsetY = srcY - destY;
-            const rad = Math.atan2(offsetY, offsetX);
-            const ang = -rad / Math.PI * 180 + 90;
-            const arrow = new Konva.Line({
-              x: srcX, y: srcY,
-              points: [
-                0, 0.1 * NOTE_SIZE,
-                0.4 * NOTE_SIZE, 0.3 * NOTE_SIZE,
-                0, -0.4 * NOTE_SIZE,
-                -0.4 * NOTE_SIZE, 0.3 * NOTE_SIZE
-              ],
-              fill: 'white',
-              closed: true,
-            });
-            arrow.rotate(ang);
-            zIndexes.push([note.index * 4 - 3, arrow]);
-            note.shape.push(arrow);
-          }
-          // drag line
-          if (note.next_id > 0) {
-            const next = pattern.getNote(note.next_id);
-            const dragLine = new Konva.Line({
-              points: [ X(note.x), Y(note.y), X(next.x), Y(next.y) ],
-              stroke: 'white',
-              strokeWidth: NOTE_SIZE * 0.4,
-              dash: [NOTE_SIZE * 0.1, NOTE_SIZE * 0.1],
-            });
-            dragLine.isLine = true;
-            zIndexes.push([next.index * 4, dragLine]);
-            note.shape.push(dragLine);
-          }
-          // short hold body
-          if (type === 'hold') {
-            const holdBody = new Konva.Line({
-              points: [ X(note.x), Y(note.y), X(note.x), Y(note.hold_y) ],
-              stroke: 'white',
-              strokeWidth: NOTE_SIZE,
-              dash: [NOTE_SIZE * 0.15, NOTE_SIZE * 0.15],
-            });
-            holdBody.isLine = true;
-            zIndexes.push([note.index * 4, holdBody]);
-            note.shape.push(holdBody);
-          }
-          // long hold body
-          if (type === 'long_hold') {
-            const holdBody = new Konva.Line({
-              points: [
-                X(note.x), 0,
-                X(note.x), HEIGHT,
-              ],
-              stroke: color.INNER,
-              strokeWidth: NOTE_SIZE,
-              dash: [NOTE_SIZE * 0.15, NOTE_SIZE * 0.15],
-            });
-            holdBody.isLine = true;
-            zIndexes.push([note.index * 4, holdBody]);
-            note.shape.push(holdBody);
-          }
-          // flick
-          if (type === 'flick') {
-            // outer white ring
-            const outer = new Konva.Rect({
-              x: X(note.x),
-              y: Y(note.y),
-              width: size * 2,
-              height: size * 2,
-              fill: 'transparent',
-              stroke: 'white',
-              strokeWidth: size * 0.18,
-              shadowBlur: 10,
-              shadowColor: 'black',
-              shadowOffset: { x: 0, y: 0 },
-              shadowOpacity: 0.8,
-            });
-            outer.offsetX(outer.width() / 2);
-            outer.offsetY(outer.height() / 2);
-            outer.rotate(45);
-            zIndexes.push([note.index * 4 - 1, outer]);
-            // inner color
-            const inner = new Konva.Rect({
-              x: X(note.x),
-              y: Y(note.y),
-              width: size * 0.82 * 2,
-              height: size * 0.82 * 2,
-              stroke: color.RING,
-              strokeWidth: size * 0.18,
-              fill: color.INNER,
-            });
-            inner.offsetX(inner.width() / 2);
-            inner.offsetY(inner.height() / 2);
-            inner.rotate(45);
-            zIndexes.push([note.index * 4 - 2, inner]);
-            note.shape.push(inner, outer);
-          } else {
-            // outer white ring
-            const outer = new Konva.Circle({
-              x: X(note.x),
-              y: Y(note.y),
-              radius: size,
-              fill: 'transparent',
-              stroke: 'white',
-              strokeWidth: size * 0.15,
-              shadowBlur: 10,
-              shadowColor: 'black',
-              shadowOffset: { x: 0, y: 0 },
-              shadowOpacity: 0.8,
-            });
-            // inner color
-            const inner = new Konva.Circle({
-              x: X(note.x),
-              y: Y(note.y),
-              radius: size * 0.85,
-              stroke: color.RING,
-              strokeWidth: size * 0.15,
-              fillRadialGradientColorStops: [
-                0, color.INNER,
-                1, centerColor
-              ],
-              fillRadialGradientStartRadius: size,
-              fillRadialGradientEndRadius: size / 4,
-            });
-            zIndexes.push([note.index * 4 - 1, outer]);
-            zIndexes.push([note.index * 4 - 2, inner]);
-            note.shape.push(inner, outer);
-          }
-          note.shape.forEach(shape => {
-            shape.cache();
-            shape.filters([Konva.Filters.Contrast]);
-            shape.contrast(-50);
-            if (shape.isLine !== true) {
-              shape.scaleX(0.8);
-              shape.scaleY(0.8);
-            }
-            noteLayer.add(shape);
-          });
-        } else if (note.page_index === pattern.currentPageIndex() && !note.pageSwitched) {
+        note.shape.forEach(shape => {
+          if (shape.parent === null) noteLayer.add(shape);
+          zIndexes.push([shape.zPosition, shape]);
+        });
+        if (note.page_index === pattern.currentPageIndex() && !note.pageSwitched) {
           // switch note from back page to front page
           note.pageSwitched = true;
           note.shape.forEach(shape => {
@@ -293,6 +307,9 @@ const WebCytus2 = function (config) {
           });
         }
       });
+      zIndexes.sort((a, b) => b[0] - a[0]);
+      zIndexes.forEach(([_, shape], z) => shape.zIndex(z));
+
       // remove old notes
       pattern.notesToRemove().forEach(note => {
         if (!pattern.isRemoved(note.index)) {
@@ -303,7 +320,6 @@ const WebCytus2 = function (config) {
           note.shape.forEach(shape => {
             if (shape.isLine === true) {
               shape.remove();
-              shape.destroy();
               return;
             }
             const hitEffect = new Konva.Tween({
@@ -315,7 +331,6 @@ const WebCytus2 = function (config) {
               easing: Konva.Easings.Linear,
               onFinish() {
                 shape.remove();
-                shape.destroy();
               }
             });
             hitEffect.play();
@@ -323,53 +338,54 @@ const WebCytus2 = function (config) {
           delete note.shape;
         }
       });
-      zIndexes.sort((a, b) => b[0] - a[0]);
-      zIndexes.forEach(([_, shape], z) => shape.zIndex(z));
 
-      noteLayer.draw();
-      scanLineLayer.draw();
+      noteLayer.batchDraw();
+      scanLineLayer.batchDraw();
       window.requestAnimationFrame(mainLoop);
     }
 
     if (!status) return;
 
-    // status
-    const message = [];
-    message.push([
-      `Time: ${time.toFixed(3)} ms`,
-      `Tick: ${pattern.currentTick().toFixed(0)}`,
-      `Tempo: ${pattern.currentTempo()}`,
-      `Playback rate: ${rate.toFixed(4)}x`,
-    ]);
-
-    message.push([
-      `Score: ${pattern.score().toFixed(0)}`,
-      `TP: 100.00`,
-    ]);
-
     const renderCost = Date.now() - startRender;
-    totalFrame++;
-    totalCost += renderCost;
-    const avgCost = totalCost / totalFrame;
-    maxCost = Math.max(maxCost, renderCost);
-    message.push([
-      `Frame render time: ${renderCost} ms`,
-      `Max: ${maxCost} ms`,
-      `Avg: ${avgCost.toFixed(2)} ms`,
-    ]);
-    if (aniTime > 0) {
-      const fps = 1000 / (aniTime - lastTime);
-      const totalFps = totalFrame / (aniTime / 1000);
+
+    // status
+    setTimeout(() => {
+      const message = [];
       message.push([
-        `Frame per second: ${fps.toFixed(1)}`,
-        `Avg: ${totalFps.toFixed(2)}`
+        `Time: ${time.toFixed(3)} ms`,
+        `Tick: ${pattern.currentTick().toFixed(0)}`,
+        `Tempo: ${pattern.currentTempo()}`,
+        `Playback rate: ${rate.toFixed(4)}x`,
       ]);
-    }
-    lastTime = aniTime;
 
-    if (pattern.isFinished()) message.push(['Finished']);
+      message.push([
+        `Score: ${pattern.score().toFixed(0)}`,
+        `TP: ${pattern.tp().toFixed(2)}`,
+      ]);
 
-    status.innerHTML = message.map(m => m.join('; ')).join('\n');
+      totalFrame++;
+      totalCost += renderCost;
+      const avgCost = totalCost / totalFrame;
+      maxCost = Math.max(maxCost, renderCost);
+      message.push([
+        `Frame render time: ${renderCost} ms`,
+        `Max: ${maxCost} ms`,
+        `Avg: ${avgCost.toFixed(2)} ms`,
+      ]);
+      if (aniTime > 0) {
+        const fps = 1000 / (aniTime - lastTime);
+        const totalFps = totalFrame / (aniTime / 1000);
+        message.push([
+          `Frame per second: ${fps.toFixed(1)}`,
+          `Avg: ${totalFps.toFixed(2)}`
+        ]);
+      }
+      lastTime = aniTime;
+
+      if (pattern.isFinished()) message.push(['Finished']);
+
+      status.innerHTML = message.map(m => m.join('; ')).join('\n');
+    }, 0);
   }
 
   const readyListener = [];

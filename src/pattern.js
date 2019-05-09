@@ -84,11 +84,14 @@ module.exports = {
       linePosition() {
         return this.position(currentTick, currentPage);
       },
-      notes() {
+      allNotes() {
+        return noteList;
+      },
+      currentNotes() {
         return noteList.slice(head, tail);
       },
       notesToRemove() {
-        return noteList.slice(removeHead, tail).filter(note => this.passed(note));
+        return noteList.slice(removeHead, tail).filter(note => this.passed(note) && !note.removed);
       },
       getNote(index) {
         return noteList[index];
