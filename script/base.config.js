@@ -41,6 +41,10 @@ const baseConfig = {
         }]
       },
       {
+        test: /\.(txt)$/,
+        use: 'raw-loader',
+      },
+      {
         test: /\.(mp3|ogg|wav)$/,
         use: [
           {

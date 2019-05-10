@@ -4,10 +4,9 @@ const Konva = require('konva');
 // Konva.pixelRatio = 1;
 const { Howl } = require('howler');
 
-const { NOTE_TYPE, NOTE_COLOR, HIT_SOUND } = require('./constants');
-const { createPattern } = require('./pattern');
-const utils = require('./utils');
-
+const { NOTE_COLOR, HIT_SOUND } = require('./constants');
+const pattern_v2 = require('./pattern');
+const pattern_v1 = require('./pattern_v1');
 
 /**
  * @class WebCytus2
@@ -18,14 +17,21 @@ const utils = require('./utils');
  * @param {Number} config.width - width of canvas
  * @param {String} config.container - id of container element
  * @param {String=} config.statusContainer - id of status container element
+ * @param {Number} [config.version=2] - pattern version (cytus 1 or 2)
+ * @param {Boolean} [config.fullscreen=false] - fullscreen
  * @param {String=} config.audio - audio url
  * @param {String} config.pattern - pattern url
  * @param {String} [config.displayType = 'group'] - display type, default or group
  * @param {Boolean} [config.showBorder = false] - show border
  */
 const WebCytus2 = function (config) {
-  const HEIGHT = config.height;
-  const WIDTH = config.width;
+  let HEIGHT = config.height;
+  let WIDTH = config.width;
+  const container = document.getElementById(config.container);
+  if (config.fullscreen === true) {
+    HEIGHT = window.screen.height;
+    WIDTH = window.screen.width;
+  }
   const NOTE_SIZE = HEIGHT / 15;
 
   const display = config.displayType || 'group';
@@ -93,14 +99,14 @@ const WebCytus2 = function (config) {
   const click = new Howl({ src: [HIT_SOUND] });
 
   // core
+  const { createPattern } = config.version === 1 ? pattern_v1 : pattern_v2;
   const pattern = createPattern(config.pattern);
   pattern.init();
 
   // made note
   console.time('Create Konva shapes');
   pattern.allNotes().forEach(note => {
-    if (!NOTE_TYPE[note.type]) console.log('unknown type ', note.type);
-    const type = NOTE_TYPE[note.type] || 'click';
+    const type = note.type;
     const color = NOTE_COLOR[type][note.direction];
     let size = NOTE_SIZE * (['drag_body', 'click_drag_body'].indexOf(type) !== -1 ? 0.5 : 1);
     if (type === 'flick') size /= 1.2;
@@ -266,126 +272,129 @@ const WebCytus2 = function (config) {
     const startRender = Date.now();
 
     if (!Number.isNaN(time)) pattern.updateTime(time);
-    if (!pattern.isFinished()) {
-      // draw line
-      scanLine.offsetY(-Y(pattern.linePosition()));
+    if (pattern.isFinished()) return;
+    // draw line
+    scanLine.offsetY(-Y(pattern.linePosition()));
 
-      // draw notes
-      const zIndexes = [];
-      pattern.currentNotes().forEach(note => {
-        if (pattern.isRemoved(note.index)) return;
+    // draw notes
+    const zIndexes = [];
+    pattern.currentNotes().forEach(note => {
+      if (pattern.isRemoved(note.index)) return;
+      note.shape.forEach(shape => {
+        if (shape.parent === null) noteLayer.add(shape);
+        zIndexes.push([shape.zPosition, shape]);
+      });
+      if (note.page_index === pattern.currentPageIndex() && !note.pageSwitched) {
+        // switch note from back page to front page
+        note.pageSwitched = true;
         note.shape.forEach(shape => {
-          if (shape.parent === null) noteLayer.add(shape);
-          zIndexes.push([shape.zPosition, shape]);
+          const switchPageEffect = new Konva.Tween({
+            node: shape,
+            duration: 0.1,
+            contrast: 0,
+            scaleX: 1,
+            scaleY: 1,
+            easing: Konva.Easings.EaseIn,
+          });
+          switchPageEffect.play();
         });
-        if (note.page_index === pattern.currentPageIndex() && !note.pageSwitched) {
-          // switch note from back page to front page
-          note.pageSwitched = true;
-          note.shape.forEach(shape => {
-            const switchPageEffect = new Konva.Tween({
-              node: shape,
-              duration: 0.1,
-              contrast: 0,
-              scaleX: 1,
-              scaleY: 1,
-              easing: Konva.Easings.EaseIn,
-            });
-            switchPageEffect.play();
+      } else if (pattern.isHolding(note) && !note.hasHoldingEffect) {
+        note.hasHoldingEffect = true;
+        note.shape.forEach(shape => {
+          if (shape.isLine === true) return;
+          const holdingEffect = new Konva.Tween({
+            node: shape,
+            duration: 0.1,
+            scaleX: 1.2,
+            scaleY: 1.2,
+            easing: Konva.Easings.EaseIn,
           });
-        } else if (pattern.isHolding(note) && !note.hasHoldingEffect) {
-          note.hasHoldingEffect = true;
-          note.shape.forEach(shape => {
-            if (shape.isLine === true) return;
-            const holdingEffect = new Konva.Tween({
-              node: shape,
-              duration: 0.1,
-              scaleX: 1.2,
-              scaleY: 1.2,
-              easing: Konva.Easings.EaseIn,
-            });
-            holdingEffect.play();
-          });
-        }
-      });
-      zIndexes.sort((a, b) => b[0] - a[0]);
-      zIndexes.forEach(([_, shape], z) => shape.zIndex(z));
+          holdingEffect.play();
+        });
+      }
+    });
+    zIndexes.sort((a, b) => b[0] - a[0]);
+    zIndexes.forEach(([_, shape], z) => shape.zIndex(z));
 
-      // remove old notes
-      pattern.notesToRemove().forEach(note => {
-        if (!pattern.isRemoved(note.index)) {
-          if (note.shape) click.play();
-          pattern.removeNote(note.index);
-        }
-        if (note.shape) {
-          note.shape.forEach(shape => {
-            if (shape.isLine === true) {
+    // remove old notes
+    pattern.notesToRemove().forEach(note => {
+      if (pattern.isRemoved(note.index)) return;
+      if (note.shape) click.play();
+      pattern.removeNote(note.index);
+      if (note.shape) {
+        note.shape.forEach(shape => {
+          if (shape.isLine === true) {
+            shape.remove();
+            return;
+          }
+          const hitEffect = new Konva.Tween({
+            node: shape,
+            duration: 0.1,
+            scaleX: 1.2,
+            scaleY: 1.2,
+            opacity: 0,
+            easing: Konva.Easings.Linear,
+            onFinish() {
               shape.remove();
-              return;
             }
-            const hitEffect = new Konva.Tween({
-              node: shape,
-              duration: 0.1,
-              scaleX: 1.2,
-              scaleY: 1.2,
-              opacity: 0,
-              easing: Konva.Easings.Linear,
-              onFinish() {
-                shape.remove();
-              }
-            });
-            hitEffect.play();
           });
-          delete note.shape;
-        }
-      });
+          hitEffect.play();
+        });
+        delete note.shape;
+      }
+    });
 
-      noteLayer.batchDraw();
-      scanLineLayer.batchDraw();
-      window.requestAnimationFrame(mainLoop);
-    }
-
-    if (!status) return;
+    noteLayer.batchDraw();
+    scanLineLayer.batchDraw();
 
     const renderCost = Date.now() - startRender;
 
     // status
-    setTimeout(() => {
-      const message = [];
-      message.push([
-        `Time: ${time.toFixed(3)} ms`,
-        `Tick: ${pattern.currentTick().toFixed(0)}`,
-        `Tempo: ${pattern.currentTempo()}`,
-        `Playback rate: ${rate.toFixed(4)}x`,
-      ]);
-
-      message.push([
-        `Score: ${pattern.score().toFixed(0)}`,
-        `TP: ${pattern.tp().toFixed(2)}`,
-      ]);
-
-      totalFrame++;
-      totalCost += renderCost;
-      const avgCost = totalCost / totalFrame;
-      maxCost = Math.max(maxCost, renderCost);
-      message.push([
-        `Frame render time: ${renderCost} ms`,
-        `Max: ${maxCost} ms`,
-        `Avg: ${avgCost.toFixed(2)} ms`,
-      ]);
-      if (aniTime > 0) {
-        const fps = 1000 / (aniTime - lastTime);
-        const totalFps = totalFrame / (aniTime / 1000);
+    if (status) {
+      setTimeout(() => {
+        const message = [];
         message.push([
-          `Frame per second: ${fps.toFixed(1)}`,
-          `Avg: ${totalFps.toFixed(2)}`
+          `Time: ${time.toFixed(3)} ms`,
+          `Playback rate: ${rate.toFixed(4)}x`,
         ]);
-      }
-      lastTime = aniTime;
+        if (config.version === 2) {
+          message[message.length - 1].push(
+            `Tick: ${pattern.currentTick().toFixed(0)}`,
+            `Tempo: ${pattern.currentTempo()}`
+          );
+        }
 
-      if (pattern.isFinished()) message.push(['Finished']);
+        message.push([
+          `Score: ${pattern.score().toFixed(0)}`,
+          `TP: ${pattern.tp().toFixed(2)}`,
+        ]);
 
-      status.innerHTML = message.map(m => m.join('; ')).join('\n');
-    }, 0);
+        totalFrame++;
+        totalCost += renderCost;
+        const avgCost = totalCost / totalFrame;
+        maxCost = Math.max(maxCost, renderCost);
+        message.push([
+          `Frame render time: ${renderCost} ms`,
+          `Max: ${maxCost} ms`,
+          `Avg: ${avgCost.toFixed(2)} ms`,
+        ]);
+        if (aniTime > 0) {
+          const fps = 1000 / (aniTime - lastTime);
+          const totalFps = totalFrame / (aniTime / 1000);
+          message.push([
+            `Frame per second: ${fps.toFixed(1)}`,
+            `Avg: ${totalFps.toFixed(2)}`
+          ]);
+        }
+        lastTime = aniTime;
+
+        if (pattern.isFinished()) message.push(['Finished']);
+
+        status.innerHTML = message.map(m => m.join('; ')).join('\n');
+      }, 0);
+    }
+
+    window.requestAnimationFrame(mainLoop);
   }
 
   const readyListener = [];
@@ -439,6 +448,10 @@ const WebCytus2 = function (config) {
     if (usingAudio) {
       audio.seek(offset);
       playingId = audio.play();
+    }
+    if (config.fullscreen === true) {
+      const requestFullScreen = container.requestFullscreen || container.mozRequestFullScreen || container.webkitRequestFullScreen || container.msRequestFullscreen;
+      requestFullScreen.call(container);
     }
     window.requestAnimationFrame(mainLoop);
   }

@@ -50,10 +50,13 @@ const cy = new WebCytus2({
   height, width,
   container: 'container',
   statusContainer: 'status',
-  audio: require('./resources/audio/ivy001_014.mp3'),
-  pattern: require('./resources/patterns/ivy001_014_2.json'),
+  // audio: require('./resources/audio/ivy001_014.mp3'),
+  // pattern: require('./resources/patterns/ivy001_014_2.json'),
+  audio: require('./resources/c1/audio/conflict.mp3'),
+  pattern: require('./resources/c1/patterns/conflict.hard.txt').default,
   showBorder: true,
   displayType: 'group',
+  version: 1,
 });
 
 const progress = document.getElementById('seek');

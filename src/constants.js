@@ -1,8 +1,3 @@
-const NOTE_TYPE = [
-  'click', 'hold', 'long_hold',
-  'drag_head', 'drag_body', 'flick',
-  'click_drag_head', 'click_drag_body',
-];
 const NOTE_COLOR = {
   click: {
     [1]: {
@@ -88,4 +83,4 @@ const NOTE_COLOR = {
 
 const HIT_SOUND = require('./resources/beat.wav');
 
-module.exports = { NOTE_TYPE, NOTE_COLOR, HIT_SOUND };
+module.exports = { NOTE_COLOR, HIT_SOUND };

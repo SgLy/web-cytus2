@@ -1,4 +1,8 @@
-const utils = require('./utils');
+const NOTE_TYPE = [
+  'click', 'hold', 'long_hold',
+  'drag_head', 'drag_body', 'flick',
+  'click_drag_head', 'click_drag_body',
+];
 
 module.exports = {
   createPattern(pattern) {
@@ -10,7 +14,7 @@ module.exports = {
     const tempoList = pattern.tempo_list;
     const eventOrderList = pattern.event_order_list;
     const noteList = pattern.note_list;
-    let currentPageIndex, currentTick, finished, currentPage, nextPage, head, tail, removeHead, currentTempoIndex, currentTime, noteCount, removedCount;
+    let currentPageIndex, currentTick, finished, currentPage, nextPage, head, removeHead, tail, currentTempoIndex, currentTime, noteCount, removedCount;
     return {
       init() {
         currentPageIndex = 0;
@@ -27,6 +31,8 @@ module.exports = {
         noteCount = noteList.length;
         removedCount = 0;
         noteList.forEach((note, i) => {
+          if (!NOTE_TYPE[note.type]) console.log('unknown type ', note.type);
+          note.type = NOTE_TYPE[note.type] || 'click';
           note.index = i;
           note.y = this.position(note.tick, pageList[note.page_index]);
           note.direction = pageList[note.page_index].scan_line_direction;
