@@ -27,10 +27,10 @@ module.exports = {
         pageShift = parseFloat(pattern.match(/PAGE_SHIFT[ \t]([\d\.]+)/)[1]) * 1000;
         pageSize = parseFloat(pattern.match(/PAGE_SIZE[ \t]([\d\.]+)/)[1]) * 1000;
         noteList.forEach(note => {
-          note.direction = this.direction(note.time);
-          note.y = this.position(note.time);
-          if (note.length > 0) note.hold_y = this.position(note.time + note.length);
-          note.page_index = this.pageIndex(note.time);
+          note.direction = this.direction(note.time + pageShift);
+          note.y = this.position(note.time + pageShift);
+          if (note.length > 0) note.hold_y = this.position(note.time + note.length + pageShift);
+          note.page_index = this.pageIndex(note.time + pageShift);
           if (note.next_id) {
             noteList[note.next_id].type = 'drag_body';
             if (note.type !== 'drag_body') note.type = 'drag_head';
@@ -72,7 +72,7 @@ module.exports = {
         return currentTime > lastNote.time + lastNote.length + 1000;
       },
       linePosition() {
-        return this.position(currentTime - pageShift);
+        return this.position(currentTime);
       },
       currentNotes() {
         return noteList.slice(head, tail);
