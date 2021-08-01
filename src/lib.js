@@ -1,6 +1,6 @@
 'use strict';
 
-const Konva = require('konva');
+const Konva = require('konva').default;
 // Konva.pixelRatio = 1;
 const { Howl } = require('howler');
 
@@ -269,7 +269,7 @@ const WebCytus2 = function (config) {
     if (usingAudio) time = audio.seek() * 1000;
     else time = aniTime * rate + offset * 1000;
     timeUpdateListener.forEach(f => f(time));
-    const startRender = Date.now();
+    const startRender = performance.now();
 
     if (!Number.isNaN(time)) pattern.updateTime(time);
     if (pattern.isFinished()) return;
@@ -347,7 +347,7 @@ const WebCytus2 = function (config) {
     noteLayer.batchDraw();
     scanLineLayer.batchDraw();
 
-    const renderCost = Date.now() - startRender;
+    const renderCost = performance.now() - startRender;
 
     // status
     if (status) {
@@ -365,6 +365,7 @@ const WebCytus2 = function (config) {
         }
 
         message.push([
+          `Combo: ${pattern.combo()}`,
           `Score: ${pattern.score().toFixed(0)}`,
           `TP: ${pattern.tp().toFixed(2)}`,
         ]);
@@ -374,9 +375,9 @@ const WebCytus2 = function (config) {
         const avgCost = totalCost / totalFrame;
         maxCost = Math.max(maxCost, renderCost);
         message.push([
-          `Frame render time: ${renderCost} ms`,
-          `Max: ${maxCost} ms`,
-          `Avg: ${avgCost.toFixed(2)} ms`,
+          `Frame render time: ${renderCost.toFixed(4)} ms`,
+          `Max: ${maxCost.toFixed(4)} ms`,
+          `Avg: ${avgCost.toFixed(4)} ms`,
         ]);
         if (aniTime > 0) {
           const fps = 1000 / (aniTime - lastTime);

@@ -50,13 +50,15 @@ const cy = new WebCytus2({
   height, width,
   container: 'container',
   statusContainer: 'status',
+  audio: require('./resources/songdata_vos054_bossstage/songdata_vos054_bossstage.ogg'),
+  pattern: require('./resources/songdata_vos054_bossstage/songdata_vos054_bossstage.json'),
   // audio: require('./resources/audio/ivy001_014.mp3'),
   // pattern: require('./resources/patterns/ivy001_014_2.json'),
-  audio: require('./resources/c1/audio/conflict.mp3'),
-  pattern: require('./resources/c1/patterns/conflict.hard.txt').default,
+  // audio: require('./resources/c1/audio/conflict.mp3'),
+  // pattern: require('./resources/c1/patterns/conflict.hard.txt').default,
   showBorder: true,
   displayType: 'group',
-  version: 1,
+  version: 2,
 });
 
 const progress = document.getElementById('seek');

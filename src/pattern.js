@@ -85,7 +85,17 @@ module.exports = {
       },
       position(tick, page) {
         const offset = (tick - page.start_tick) / (page.end_tick - page.start_tick);
-        return page.scan_line_direction === 1 ? 1 - offset : offset;
+        let position = page.scan_line_direction === 1 ? 1 - offset : offset
+        if (page.PositionFunction !== undefined) {
+          const fn = page.PositionFunction
+          if (fn.Type === 0) {
+            let pageStart = (1 - fn.Arguments[0] - fn.Arguments[1]) / 2
+            position = position * fn.Arguments[0] + pageStart
+          } else {
+            console.warn('Unknown PositionFunction Type: ' + fn.Type)
+          }
+        }
+        return position;
       },
       linePosition() {
         return this.position(currentTick, currentPage);
