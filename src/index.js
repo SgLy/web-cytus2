@@ -5,7 +5,7 @@ require('./index.css');
 const WebCytus2 = require('./lib');
 
 const height = Math.min(1536, Math.floor(window.innerHeight * 0.8));
-const width = height / 3 * 4;
+const width = (height / 3) * 4;
 
 // page setup
 const root = document.createElement('div');
@@ -32,10 +32,23 @@ root.append(container);
 
 document.getElementById('full').onclick = () => {
   const doc = window.document;
-  const requestFullScreen = container.requestFullscreen || container.mozRequestFullScreen || container.webkitRequestFullScreen || container.msRequestFullscreen;
-  const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+  const requestFullScreen =
+    container.requestFullscreen ||
+    container.mozRequestFullScreen ||
+    container.webkitRequestFullScreen ||
+    container.msRequestFullscreen;
+  const cancelFullScreen =
+    doc.exitFullscreen ||
+    doc.mozCancelFullScreen ||
+    doc.webkitExitFullscreen ||
+    doc.msExitFullscreen;
 
-  if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+  if (
+    !doc.fullscreenElement &&
+    !doc.mozFullScreenElement &&
+    !doc.webkitFullscreenElement &&
+    !doc.msFullscreenElement
+  ) {
     requestFullScreen.call(container);
   } else {
     cancelFullScreen.call(doc);
@@ -47,7 +60,8 @@ status.id = 'status';
 root.append(status);
 
 const cy = new WebCytus2({
-  height, width,
+  height,
+  width,
   container: 'container',
   statusContainer: 'status',
   audio: require('./resources/songdata_vos054_bossstage/songdata_vos054_bossstage.ogg'),
@@ -66,8 +80,8 @@ let progressChanging = false;
 cy.onTimeUpdate(time => {
   if (!progressChanging) progress.value = time / 1000;
 });
-progress.onmousedown = () => progressChanging = true;
-progress.onmouseup = () => progressChanging = false;
+progress.onmousedown = () => (progressChanging = true);
+progress.onmouseup = () => (progressChanging = false);
 progress.onchange = e => {
   cy.seekTo(e.target.value * 1000);
 };
@@ -81,7 +95,7 @@ play.onclick = e => {
     cy.resume();
     e.target.innerHTML = '||';
   }
-}
+};
 
 document.getElementById('rate').onchange = e => {
   cy.rate(Math.pow(2, e.target.value / 6));

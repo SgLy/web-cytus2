@@ -7,5 +7,5 @@ module.exports = {
   },
   sqr(x) {
     return x * x;
-  }
-}
+  },
+};

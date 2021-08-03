@@ -11,7 +11,7 @@ const pattern_v1 = require('./pattern_v1');
 /**
  * @class WebCytus2
  * @classdesc Create a new WebCytus2 instance
- * 
+ *
  * @param {Object} config - configurations
  * @param {Number} config.height - height of canvas
  * @param {Number} config.width - width of canvas
@@ -61,14 +61,16 @@ const WebCytus2 = function (config) {
     strokeWidth: 1,
   });
   if (config.showBorder) {
-    backgroundLayer.add(new Konva.Rect({
-      x: 0,
-      y: 0,
-      width: WIDTH,
-      height: HEIGHT,
-      fill: '#6f6f6f',
-      strokeWidth: 0,
-    }));
+    backgroundLayer.add(
+      new Konva.Rect({
+        x: 0,
+        y: 0,
+        width: WIDTH,
+        height: HEIGHT,
+        fill: '#6f6f6f',
+        strokeWidth: 0,
+      }),
+    );
     backgroundLayer.add(border);
   }
 
@@ -108,25 +110,44 @@ const WebCytus2 = function (config) {
   pattern.allNotes().forEach(note => {
     const type = note.type;
     const color = NOTE_COLOR[type][note.direction];
-    let size = NOTE_SIZE * (['drag_body', 'click_drag_body'].indexOf(type) !== -1 ? 0.5 : 1);
+    let size =
+      NOTE_SIZE *
+      (['drag_body', 'click_drag_body'].indexOf(type) !== -1 ? 0.5 : 1);
     if (type === 'flick') size /= 1.2;
-    const centerColor = ['drag_head', 'drag_body', 'click_drag_head', 'click_drag_body', 'long_hold'].indexOf(type) !== -1 ? color.INNER : 'white';
+    const centerColor =
+      [
+        'drag_head',
+        'drag_body',
+        'click_drag_head',
+        'click_drag_body',
+        'long_hold',
+      ].indexOf(type) !== -1
+        ? color.INNER
+        : 'white';
     note.shape = [];
     // drag arrow
     if (type === 'drag_head' || type === 'click_drag_head') {
       const next = pattern.getNote(note.next_id);
-      const srcX = X(note.x), srcY = Y(note.y);
-      const destX = X(next.x), destY = Y(next.y);
-      const offsetX = destX - srcX, offsetY = srcY - destY;
+      const srcX = X(note.x),
+        srcY = Y(note.y);
+      const destX = X(next.x),
+        destY = Y(next.y);
+      const offsetX = destX - srcX,
+        offsetY = srcY - destY;
       const rad = Math.atan2(offsetY, offsetX);
-      const ang = -rad / Math.PI * 180 + 90;
+      const ang = (-rad / Math.PI) * 180 + 90;
       const arrow = new Konva.Line({
-        x: srcX, y: srcY,
+        x: srcX,
+        y: srcY,
         points: [
-          0, 0.1 * NOTE_SIZE,
-          0.4 * NOTE_SIZE, 0.3 * NOTE_SIZE,
-          0, -0.4 * NOTE_SIZE,
-          -0.4 * NOTE_SIZE, 0.3 * NOTE_SIZE
+          0,
+          0.1 * NOTE_SIZE,
+          0.4 * NOTE_SIZE,
+          0.3 * NOTE_SIZE,
+          0,
+          -0.4 * NOTE_SIZE,
+          -0.4 * NOTE_SIZE,
+          0.3 * NOTE_SIZE,
         ],
         fill: 'white',
         closed: true,
@@ -139,7 +160,7 @@ const WebCytus2 = function (config) {
     if (note.next_id > 0) {
       const next = pattern.getNote(note.next_id);
       const dragLine = new Konva.Line({
-        points: [ X(note.x), Y(note.y), X(next.x), Y(next.y) ],
+        points: [X(note.x), Y(note.y), X(next.x), Y(next.y)],
         stroke: 'white',
         strokeWidth: NOTE_SIZE * 0.4,
         dash: [NOTE_SIZE * 0.1, NOTE_SIZE * 0.1],
@@ -151,7 +172,7 @@ const WebCytus2 = function (config) {
     // short hold body
     if (type === 'hold') {
       const holdBody = new Konva.Line({
-        points: [ X(note.x), Y(note.y), X(note.x), Y(note.hold_y) ],
+        points: [X(note.x), Y(note.y), X(note.x), Y(note.hold_y)],
         stroke: 'white',
         strokeWidth: NOTE_SIZE,
         dash: [NOTE_SIZE * 0.15, NOTE_SIZE * 0.15],
@@ -163,10 +184,7 @@ const WebCytus2 = function (config) {
     // long hold body
     if (type === 'long_hold') {
       const holdBody = new Konva.Line({
-        points: [
-          X(note.x), 0,
-          X(note.x), HEIGHT,
-        ],
+        points: [X(note.x), 0, X(note.x), HEIGHT],
         stroke: color.INNER,
         strokeWidth: NOTE_SIZE,
         dash: [NOTE_SIZE * 0.15, NOTE_SIZE * 0.15],
@@ -231,10 +249,7 @@ const WebCytus2 = function (config) {
         radius: size * 0.85,
         stroke: color.RING,
         strokeWidth: size * 0.15,
-        fillRadialGradientColorStops: [
-          0, color.INNER,
-          1, centerColor
-        ],
+        fillRadialGradientColorStops: [0, color.INNER, 1, centerColor],
         fillRadialGradientStartRadius: size,
         fillRadialGradientEndRadius: size / 4,
       });
@@ -262,9 +277,12 @@ const WebCytus2 = function (config) {
   const usingAudio = audio && rate <= 4 && rate >= 0.5;
   const offset = 0;
   // main loop
-  let lastTime = 0, time = 0;
+  let lastTime = 0,
+    time = 0;
   let playingId;
-  let totalCost = 0, maxCost = 0, totalFrame = 0;
+  let totalCost = 0,
+    maxCost = 0,
+    totalFrame = 0;
   function mainLoop(aniTime) {
     if (usingAudio) time = audio.seek() * 1000;
     else time = aniTime * rate + offset * 1000;
@@ -284,7 +302,10 @@ const WebCytus2 = function (config) {
         if (shape.parent === null) noteLayer.add(shape);
         zIndexes.push([shape.zPosition, shape]);
       });
-      if (note.page_index === pattern.currentPageIndex() && !note.pageSwitched) {
+      if (
+        note.page_index === pattern.currentPageIndex() &&
+        !note.pageSwitched
+      ) {
         // switch note from back page to front page
         note.pageSwitched = true;
         note.shape.forEach(shape => {
@@ -314,7 +335,7 @@ const WebCytus2 = function (config) {
       }
     });
     zIndexes.sort((a, b) => b[0] - a[0]);
-    zIndexes.forEach(([_, shape], z) => shape.zIndex(z));
+    zIndexes.forEach(([, shape], z) => shape.zIndex(z));
 
     // remove old notes
     pattern.notesToRemove().forEach(note => {
@@ -336,7 +357,7 @@ const WebCytus2 = function (config) {
             easing: Konva.Easings.Linear,
             onFinish() {
               shape.remove();
-            }
+            },
           });
           hitEffect.play();
         });
@@ -360,7 +381,7 @@ const WebCytus2 = function (config) {
         if (config.version === 2) {
           message[message.length - 1].push(
             `Tick: ${pattern.currentTick().toFixed(0)}`,
-            `Tempo: ${pattern.currentTempo()}`
+            `Tempo: ${pattern.currentTempo()}`,
           );
         }
 
@@ -384,7 +405,7 @@ const WebCytus2 = function (config) {
           const totalFps = totalFrame / (aniTime / 1000);
           message.push([
             `Frame per second: ${fps.toFixed(1)}`,
-            `Avg: ${totalFps.toFixed(2)}`
+            `Avg: ${totalFps.toFixed(2)}`,
           ]);
         }
         lastTime = aniTime;
@@ -401,20 +422,20 @@ const WebCytus2 = function (config) {
   const readyListener = [];
   this.ready = listener => {
     readyListener.push(listener);
-  }
+  };
 
   this.duration = () => {
     return audio.duration();
-  }
+  };
 
   this.onTimeUpdate = listener => {
     timeUpdateListener.push(listener);
-  }
+  };
 
   this.rate = r => {
     rate = r;
     if (audio) audio.rate(r);
-  }
+  };
 
   this.currentTime = () => time;
 
@@ -422,28 +443,28 @@ const WebCytus2 = function (config) {
     if (t > time) {
       audio.seek(t / 1000);
     }
-  }
+  };
 
   this.playing = () => {
     if (audio) return audio.playing();
-  }
+  };
 
   this.pause = () => {
     if (audio) audio.pause();
-  }
+  };
 
   this.resume = () => {
     if (audio) audio.play(playingId);
-  }
+  };
 
   this.stop = () => {
     if (audio) audio.stop();
-  }
+  };
 
   this.volume = v => {
     if (audio) audio.volume(v);
     click.volume(v);
-  }
+  };
 
   this.play = () => {
     if (usingAudio) {
@@ -451,15 +472,19 @@ const WebCytus2 = function (config) {
       playingId = audio.play();
     }
     if (config.fullscreen === true) {
-      const requestFullScreen = container.requestFullscreen || container.mozRequestFullScreen || container.webkitRequestFullScreen || container.msRequestFullscreen;
+      const requestFullScreen =
+        container.requestFullscreen ||
+        container.mozRequestFullScreen ||
+        container.webkitRequestFullScreen ||
+        container.msRequestFullscreen;
       requestFullScreen.call(container);
     }
     window.requestAnimationFrame(mainLoop);
-  }
+  };
 
   audio.on('load', () => {
     readyListener.forEach(f => f());
   });
-}
+};
 
 module.exports = WebCytus2;

@@ -1,27 +1,46 @@
 const NOTE_TYPE = [
-  'click', 'hold', 'long_hold',
-  'drag_head', 'drag_body', 'flick',
-  'click_drag_head', 'click_drag_body',
+  'click',
+  'hold',
+  'long_hold',
+  'drag_head',
+  'drag_body',
+  'flick',
+  'click_drag_head',
+  'click_drag_body',
 ];
 
 module.exports = {
   createPattern(pattern) {
     const JUDGE_DELAY = 0;
+    // eslint-disable-next-line no-unused-vars
     const formatVersion = pattern.format_version;
+    // eslint-disable-next-line no-unused-vars
     const timeBase = pattern.time_base;
+    // eslint-disable-next-line no-unused-vars
     const startOffsetTime = pattern.start_offset_time;
     const pageList = pattern.page_list;
     const tempoList = pattern.tempo_list;
+    // eslint-disable-next-line no-unused-vars
     const eventOrderList = pattern.event_order_list;
     const noteList = pattern.note_list;
-    let currentPageIndex, currentTick, finished, currentPage, nextPage, head, removeHead, tail, currentTempoIndex, currentTime, noteCount, removedCount;
+    let currentPageIndex;
+    let currentTick;
+    let finished;
+    let currentPage;
+    let nextPage;
+    let head;
+    let removeHead;
+    let tail;
+    let currentTempoIndex;
+    let currentTime;
+    let noteCount;
+    let removedCount;
     return {
       init() {
         currentPageIndex = 0;
         currentTempoIndex = 0;
         currentTime = 0;
         currentTick = 0;
-        passedTicks = 0;
         head = 0;
         removeHead = 0;
         tail = 0;
@@ -36,8 +55,11 @@ module.exports = {
           note.index = i;
           note.y = this.position(note.tick, pageList[note.page_index]);
           note.direction = pageList[note.page_index].scan_line_direction;
-          if (note.hold_tick > 0) note.hold_y = this.position(
-            note.tick + note.hold_tick, pageList[note.page_index]);
+          if (note.hold_tick > 0)
+            note.hold_y = this.position(
+              note.tick + note.hold_tick,
+              pageList[note.page_index],
+            );
           delete note.shape;
         });
         this.updateTime(0);
@@ -58,7 +80,11 @@ module.exports = {
         return currentPageIndex;
       },
       isHolding(note) {
-        return note.hold_tick > 0 && note.tick <= currentTick && currentTick < note.tick + note.hold_tick;
+        return (
+          note.hold_tick > 0 &&
+          note.tick <= currentTick &&
+          currentTick < note.tick + note.hold_tick
+        );
       },
       passed(note) {
         return currentTick > note.tick + note.hold_tick + JUDGE_DELAY;
@@ -66,14 +92,27 @@ module.exports = {
       nextTick() {
         currentTick++;
         currentTime += this.timePerTick();
-        while (currentPageIndex < pageList.length && currentTick > pageList[currentPageIndex].end_tick) currentPageIndex++;
+        while (
+          currentPageIndex < pageList.length &&
+          currentTick > pageList[currentPageIndex].end_tick
+        )
+          currentPageIndex++;
         if (currentPageIndex === pageList.length) finished = true;
         currentPage = pageList[currentPageIndex];
         nextPage = pageList[currentPageIndex + 1];
 
-        while (currentTempoIndex + 1 < tempoList.length && currentTick >= tempoList[currentTempoIndex + 1].tick) currentTempoIndex++;
+        while (
+          currentTempoIndex + 1 < tempoList.length &&
+          currentTick >= tempoList[currentTempoIndex + 1].tick
+        )
+          currentTempoIndex++;
 
-        while (tail < noteList.length && nextPage !== undefined && noteList[tail].tick < nextPage.end_tick) tail++;
+        while (
+          tail < noteList.length &&
+          nextPage !== undefined &&
+          noteList[tail].tick < nextPage.end_tick
+        )
+          tail++;
         while (head < tail && this.passed(noteList[head])) head++;
       },
       updateTime(time) {
@@ -84,15 +123,16 @@ module.exports = {
         return finished;
       },
       position(tick, page) {
-        const offset = (tick - page.start_tick) / (page.end_tick - page.start_tick);
-        let position = page.scan_line_direction === 1 ? 1 - offset : offset
+        const offset =
+          (tick - page.start_tick) / (page.end_tick - page.start_tick);
+        let position = page.scan_line_direction === 1 ? 1 - offset : offset;
         if (page.PositionFunction !== undefined) {
-          const fn = page.PositionFunction
+          const fn = page.PositionFunction;
           if (fn.Type === 0) {
-            let pageStart = (1 - fn.Arguments[0] - fn.Arguments[1]) / 2
-            position = position * fn.Arguments[0] + pageStart
+            let pageStart = (1 - fn.Arguments[0] - fn.Arguments[1]) / 2;
+            position = position * fn.Arguments[0] + pageStart;
           } else {
-            console.warn('Unknown PositionFunction Type: ' + fn.Type)
+            console.warn('Unknown PositionFunction Type: ' + fn.Type);
           }
         }
         return position;
@@ -107,7 +147,9 @@ module.exports = {
         return noteList.slice(head, tail);
       },
       notesToRemove() {
-        return noteList.slice(removeHead, tail).filter(note => this.passed(note) && !note.removed);
+        return noteList
+          .slice(removeHead, tail)
+          .filter(note => this.passed(note) && !note.removed);
       },
       getNote(index) {
         return noteList[index];
@@ -122,16 +164,18 @@ module.exports = {
         return noteList[index].removed;
       },
       score() {
-        const base = 900000 / noteCount * removedCount;
-        const combo = 100000 / ((noteCount - 1) * noteCount) * (removedCount * (removedCount - 1));
+        const base = (900000 / noteCount) * removedCount;
+        const combo =
+          (100000 / ((noteCount - 1) * noteCount)) *
+          (removedCount * (removedCount - 1));
         return base + combo;
       },
       tp() {
-        return 100 * removedCount / noteCount;
+        return (100 * removedCount) / noteCount;
       },
       combo() {
         return removedCount;
       },
-    }
-  }
-}
+    };
+  },
+};

@@ -1,0 +1,7 @@
+{
+  "[javascript]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnSaveMode": "file",
+    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
+  }
+}

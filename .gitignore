@@ -1,6 +1,9 @@
 # Data
 src/resources
 
+# build result
+build
+
 # Logs
 logs
 *.log

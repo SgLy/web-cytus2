@@ -37,7 +37,7 @@ const NOTE_COLOR = {
     [1]: {
       RING: '#5e46ad',
       INNER: '#782eff',
-    }
+    },
   },
   drag_body: {
     [-1]: {

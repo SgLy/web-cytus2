@@ -2,13 +2,24 @@ const utils = require('./utils');
 
 module.exports = {
   createPattern(pattern) {
-    let noteList, bpm, pageShift, pageSize;
-    let currentTime, head, tail, removeHead, removedCount, noteCount;
+    let noteList;
+    // eslint-disable-next-line no-unused-vars
+    let bpm;
+    let pageShift;
+    let pageSize;
+    let currentTime;
+    let head;
+    let tail;
+    let removeHead;
+    let removedCount;
+    let noteCount;
     const JUDGE_DELAY = 0;
     return {
       init() {
-        noteList = pattern.match(/NOTE.+/g).map(s => s.split(/[ \t]/))
-          .map(([_, i, time, position, length]) => ({
+        noteList = pattern
+          .match(/NOTE.+/g)
+          .map(s => s.split(/[ \t]/))
+          .map(([, i, time, position, length]) => ({
             id: parseInt(i, 10),
             time: parseFloat(time) * 1000,
             x: parseFloat(position),
@@ -19,17 +30,23 @@ module.exports = {
         noteCount = noteList.length;
         removedCount = 0;
         pattern.match(/LINK.+/g).map(s => {
-          const link = s.split(/[ \t]/).map(n => parseInt(n, 10)).filter(n => !Number.isNaN(n));
+          const link = s
+            .split(/[ \t]/)
+            .map(n => parseInt(n, 10))
+            .filter(n => !Number.isNaN(n));
           for (let i = 0; i < link.length - 1; ++i)
             noteList[link[i]].next_id = link[i + 1];
         });
-        bpm = parseFloat(pattern.match(/BPM[ \t]([\d\.]+)/)[1]);
-        pageShift = parseFloat(pattern.match(/PAGE_SHIFT[ \t]([\d\.]+)/)[1]) * 1000;
-        pageSize = parseFloat(pattern.match(/PAGE_SIZE[ \t]([\d\.]+)/)[1]) * 1000;
+        bpm = parseFloat(pattern.match(/BPM[ \t]([\d.]+)/)[1]);
+        pageShift =
+          parseFloat(pattern.match(/PAGE_SHIFT[ \t]([\d.]+)/)[1]) * 1000;
+        pageSize =
+          parseFloat(pattern.match(/PAGE_SIZE[ \t]([\d.]+)/)[1]) * 1000;
         noteList.forEach(note => {
           note.direction = this.direction(note.time + pageShift);
           note.y = this.position(note.time + pageShift);
-          if (note.length > 0) note.hold_y = this.position(note.time + note.length + pageShift);
+          if (note.length > 0)
+            note.hold_y = this.position(note.time + note.length + pageShift);
           note.page_index = this.pageIndex(note.time + pageShift);
           if (note.next_id) {
             noteList[note.next_id].type = 'drag_body';
@@ -51,12 +68,14 @@ module.exports = {
         return noteList[index];
       },
       score() {
-        const base = 900000 / noteCount * removedCount;
-        const combo = 100000 / ((noteCount - 1) * noteCount) * (removedCount * (removedCount - 1));
+        const base = (900000 / noteCount) * removedCount;
+        const combo =
+          (100000 / ((noteCount - 1) * noteCount)) *
+          (removedCount * (removedCount - 1));
         return base + combo;
       },
       tp() {
-        return 100 * removedCount / noteCount;
+        return (100 * removedCount) / noteCount;
       },
       combo() {
         return removedCount;
@@ -64,7 +83,8 @@ module.exports = {
       updateTime(time) {
         removeHead = head;
         currentTime = time + pageShift;
-        while (tail < noteCount && noteList[tail].time < this.nextPageEnd()) tail++;
+        while (tail < noteCount && noteList[tail].time < this.nextPageEnd())
+          tail++;
         while (head < tail && this.passed(noteList[head])) head++;
       },
       isFinished() {
@@ -81,13 +101,19 @@ module.exports = {
         return noteList[index].removed;
       },
       isHolding(note) {
-        return note.length > 0 && note.time <= currentTime && currentTime < note.time + note.length;
+        return (
+          note.length > 0 &&
+          note.time <= currentTime &&
+          currentTime < note.time + note.length
+        );
       },
       passed(note) {
         return currentTime > note.time + note.length + pageShift + JUDGE_DELAY;
       },
       notesToRemove() {
-        return noteList.slice(removeHead, tail).filter(note => this.passed(note) && !note.removed);
+        return noteList
+          .slice(removeHead, tail)
+          .filter(note => this.passed(note) && !note.removed);
       },
       removeNote(index) {
         if (!noteList[index].removed) {
@@ -113,6 +139,6 @@ module.exports = {
         const offset = (time - pageStart) / pageSize;
         return direction === 1 ? 1 - offset : offset;
       },
-    }
-  }
-}
+    };
+  },
+};

@@ -1,44 +1,57 @@
 const path = require('path');
-// eslint-disable-next-line no-unused-vars
-const webpack = require('webpack');
 
 const HtmlPlugin = require('html-webpack-plugin');
-const CleanWebpackPlugin = require('clean-webpack-plugin');
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 
 const root = path.join(__dirname, '..');
 
 /**
- * @type webpack.Configuration
+ * @type import('webpack').Configuration
  */
 const baseConfig = {
-  entry: [
-    path.join(root, 'src/index.js')
-  ],
+  entry: [path.join(root, 'src/index.js')],
   output: {
-    filename: 'index.[hash].js',
+    filename: '[name].[contenthash].js',
     publicPath: '/',
-    path: path.join(root, 'build')
+    path: path.join(root, 'build'),
+    globalObject: 'this',
   },
   optimization: {
-    runtimeChunk: false,
+    runtimeChunk: true,
     splitChunks: {
-      chunks: 'all',
-    }
+      cacheGroups: {
+        commons: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',
+          chunks: 'all',
+        },
+      },
+    },
   },
   module: {
     rules: [
+      // {
+      //   test: /\.ts$/,
+      //   loader: 'ts-loader',
+      //   options: {
+      //     transpileOnly: true,
+      //     appendTsSuffixTo: [/\.vue$/],
+      //   },
+      // },
       {
         test: /\.css$/,
         use: ['style-loader', 'css-loader'],
       },
       {
         test: /\.(png|jpg|jpeg|gif|eot|ttf|woff|woff2|svg|svgz)(\?.+)?$/,
-        use: [{
-          loader: 'url-loader',
-          options: {
-            limit: 10000
-          }
-        }]
+        use: [
+          {
+            loader: 'url-loader',
+            options: {
+              limit: 10000,
+            },
+          },
+        ],
       },
       {
         test: /\.(txt)$/,
@@ -49,22 +62,31 @@ const baseConfig = {
         use: [
           {
             loader: 'file-loader',
-            options: {},
+            options: {
+              esModule: false,
+            },
           },
         ],
       },
-    ]
+    ],
   },
   resolve: {
     extensions: ['.js', '.json'],
     alias: {
-      '@': path.join(root, 'src')
-    }
+      '@': path.join(root, 'src'),
+    },
   },
   plugins: [
-    new HtmlPlugin({ template: path.join(root, 'src/index.html') }),
-    new CleanWebpackPlugin({ verbose: false }),
-  ]
+    new HtmlPlugin({
+      template: path.join(root, 'script/index.html'),
+      inject: 'body',
+    }),
+    new CleanWebpackPlugin({
+      verbose: false,
+      watch: true,
+    }),
+    // new (require('webpack-bundle-analyzer').BundleAnalyzerPlugin)(),
+  ],
 };
 
 module.exports = baseConfig;

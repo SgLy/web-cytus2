@@ -1,17 +1,16 @@
-const merge = require('webpack-merge');
+const { merge } = require('webpack-merge');
 
 process.env.NODE_ENV = 'production';
 
-/**
- * @type webpack.Configuration
- */
+/** @type webpack.Configuration */
 const baseConfig = require('./base.config');
 
-/**
- * @type webpack.Configuration
- */
+/** @type webpack.Configuration */
 const prodConfig = {
   mode: 'production',
+  output: {
+    publicPath: './',
+  },
   entry: [],
 };
 
